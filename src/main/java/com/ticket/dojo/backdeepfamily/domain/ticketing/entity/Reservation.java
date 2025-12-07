@@ -1,4 +1,4 @@
-package com.ticket.dojo.backdeepfamily.domain.reservation.entity;
+package com.ticket.dojo.backdeepfamily.domain.ticketing.entity;
 
 import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -21,14 +21,8 @@ public class Reservation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private LocalDateTime reservationStart;
-
-    @Column(nullable = false)
-    private LocalDateTime reservationEnd;
-
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "ENUM('PENDING', 'CONFIRMED', 'CANCELLED', 'EXPIRED') DEFAULT 'PENDING'")
+    @Column(nullable = false, columnDefinition = "ENUM('PENDING', 'CONFIRMED', 'CANCELLED', 'TIMEOUT', 'PAYING') DEFAULT 'PENDING'")
     private ReservationState reservationState;
 
     @Column(nullable = false)
@@ -58,6 +52,6 @@ public class Reservation {
     }
 
     public enum ReservationState {
-        PENDING, CONFIRMED, CANCELLED, EXPIRED
+        PENDING, CONFIRMED, CANCELLED, TIMEOUT, PAYING
     }
 }
