@@ -1,6 +1,7 @@
 package com.ticket.dojo.backdeepfamily.domain.queue.controller;
 
 import com.ticket.dojo.backdeepfamily.domain.queue.dto.response.QueueEnterResponse;
+import com.ticket.dojo.backdeepfamily.domain.queue.dto.response.QueueStatusResponse;
 import com.ticket.dojo.backdeepfamily.domain.queue.service.QueueService;
 import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
 import com.ticket.dojo.backdeepfamily.domain.user.service.UserService;
@@ -35,6 +36,13 @@ public class QueueController {
 //        QueueEnterResponse response = queueService.enterQueue(userId);
 //        return ResponseEntity.ok(response);
 //    }
+
+    @GetMapping("/status")
+    public ResponseEntity<QueueStatusResponse> getQueueStatus(@RequestParam String token){
+        log.info("대기열 상태 조회 API 호출 - token : {}", token);
+        QueueStatusResponse response = queueService.getQueueStatus(token);
+        return ResponseEntity.ok(response);
+    }
 
 
 }

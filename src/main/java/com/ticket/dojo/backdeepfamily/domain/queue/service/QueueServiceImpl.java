@@ -1,10 +1,12 @@
 package com.ticket.dojo.backdeepfamily.domain.queue.service;
 
 import com.ticket.dojo.backdeepfamily.domain.queue.dto.response.QueueEnterResponse;
+import com.ticket.dojo.backdeepfamily.domain.queue.dto.response.QueueStatusResponse;
 import com.ticket.dojo.backdeepfamily.domain.queue.entity.Queue;
 import com.ticket.dojo.backdeepfamily.domain.queue.repository.QueueRepository;
 import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
 import com.ticket.dojo.backdeepfamily.domain.user.repository.UserRepository;
+import com.ticket.dojo.backdeepfamily.global.exception.QueueNotFoundException;
 import com.ticket.dojo.backdeepfamily.global.exception.UserNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +32,7 @@ public class QueueServiceImpl implements QueueService{
 
         // 1. User 조회
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다." + userId));
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다. 유저 ID : " + userId));
 
         // 2. 현재 Waiting 상태인 Queue 개수 조회
         int waitingCount = queueRepository.countByStatus(Queue.QueueStatus.WAITING);
@@ -50,5 +52,26 @@ public class QueueServiceImpl implements QueueService{
         log.info("대기열 진입 완료 - Token : {}, User : {}, 순번 : {}", token, userId, currentPosition);
 
         return new QueueEnterResponse(savedQueue.getToken(), savedQueue.getPosition(), savedQueue.getStatus(), savedQueue.getEnteredAt());
+    }
+
+    @Override
+    public QueueStatusResponse getQueueStatus(String token) {
+
+        log.info("대기열 상태 조회 요청 - token {}", token);
+
+        // 1. 토큰으로 Queue 조회
+        Queue queue = queueRepository.findByToken(token)
+                .orElseThrow(() -> new QueueNotFoundException("대기열을 찾을 수 없습니다. 토큰 : " + token));
+
+        // 2. 현재 Position 계산 (Waiting 상태일 때만)
+        int currentPosition = 0;
+        if (queue.getStatus() == Queue.QueueStatus.WAITING) {
+            // 나보다 먼저 들어온 WAITING 상태의 개수 + 1
+            currentPosition = queueRepository.countByStatusAndEnteredAtBefore(Queue.QueueStatus.WAITING, queue.getEnteredAt()) + 1;
+        }
+
+        log.info("대기열 상태 조회 완료 - Token : {}, 순번 : {}, 상태 : {} ", token, currentPosition, queue.getStatus());
+
+        return new QueueStatusResponse(queue.getToken(), currentPosition, queue.getStatus(), queue.getEnteredAt(), queue.getActivatedAt(), queue.getExpiresAt());
     }
 }
