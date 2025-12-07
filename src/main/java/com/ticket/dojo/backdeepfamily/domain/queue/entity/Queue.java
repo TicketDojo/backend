@@ -67,4 +67,15 @@ public class Queue {
         ACTIVE, // 활성화 (입장 가능)
         EXPIRED // 만료됨
     }
+
+    public static Queue createWaitQueue(User user, String token, int position){
+        return Queue.builder()
+                .user(user)
+                .token(token)
+                .status(QueueStatus.WAITING)
+                .position(position)
+                .enteredAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
 }
