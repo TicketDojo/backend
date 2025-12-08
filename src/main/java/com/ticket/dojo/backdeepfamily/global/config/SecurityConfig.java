@@ -14,6 +14,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.ticket.dojo.backdeepfamily.domain.auth.service.RefreshService;
 import com.ticket.dojo.backdeepfamily.domain.user.repository.UserRepository;
 import com.ticket.dojo.backdeepfamily.global.util.jwt.JWTFilter;
 import com.ticket.dojo.backdeepfamily.global.util.jwt.JWTUtil;
@@ -58,6 +59,12 @@ public class SecurityConfig {
      * - JWTFilter에서 토큰의 사용자 정보 검증에 사용
      */
     private final UserRepository userRepository;
+
+    /**
+     * Refresh 토큰 관리 서비스
+     * - LoginFilter에서 refresh 토큰을 DB에 저장하는데 사용
+     */
+    private final RefreshService refreshService;
 
     /**
      * AuthenticationManager 빈 등록
@@ -138,8 +145,9 @@ public class SecurityConfig {
 
         // 클라이언트에게 노출할 응답 헤더 지정
         // Authorization 헤더를 노출해야 클라이언트가 JWT 토큰을 읽을 수 있음
-        // 로그인 성공 시 응답 헤더의 "Authorization: Bearer {토큰}"을 읽기 위함
-        configuration.addExposedHeader("Authorization");
+        // access 헤더를 노출해야 클라이언트가 access 토큰을 읽을 수 있음
+        // configuration.addExposedHeader("Authorization");
+        configuration.addExposedHeader("access");
 
         // 모든 경로("/**")에 대해 위 CORS 설정 적용
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -200,7 +208,9 @@ public class SecurityConfig {
                 // 공개 경로: 인증 없이 접근 가능
                 // /users/join: 회원가입
                 // /login: 로그인
-                .requestMatchers("/users/join", "/login").permitAll()
+                // /auth/reissue: 토큰 재발급
+                // /auth/logout: 로그아웃
+                .requestMatchers("/users/join", "/login", "/auth/reissue", "/auth/logout").permitAll()
 
                 // 그 외 모든 경로: 인증 필요
                 // 예: /api/users/profile, /api/orders 등
@@ -220,8 +230,9 @@ public class SecurityConfig {
         // LoginFilter: /login 경로의 POST 요청을 처리
         // - 사용자 인증 후 JWT 토큰 발급
         // - 응답 헤더에 "Authorization: Bearer {토큰}" 추가
+        // - Refresh 토큰을 DB에 저장
         http.addFilterAt(
-            new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil),
+            new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil, refreshService),
             UsernamePasswordAuthenticationFilter.class
         );
 

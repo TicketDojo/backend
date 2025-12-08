@@ -85,7 +85,10 @@ public class JWTFilter extends OncePerRequestFilter{
         // 공개 경로는 JWT 검증 건너뛰기
         // /login: 로그인 요청 (토큰이 없어야 정상)
         // /users/join: 회원가입 요청 (토큰이 없어야 정상)
-        if(path.equals("/login") || path.equals("/users/join")) {
+        // /auth/reissue: 토큰 재발급 요청 (refresh 토큰만 필요)
+        // /auth/logout: 로그아웃 요청
+        if(path.equals("/login") || path.equals("/users/join") ||
+           path.equals("/auth/reissue") || path.equals("/auth/logout")) {
             filterChain.doFilter(request, response);  // 다음 필터로 바로 전달
             return;
         }
@@ -111,21 +114,31 @@ public class JWTFilter extends OncePerRequestFilter{
         String token = authorization.split(" ")[1];
 
         try {
-            // === 1단계: 토큰 만료 여부 확인 ===
-            if(jwtUtil.isExpired(token)) {
-                log.error("Token Timeout");
+            // === 1단계: 토큰 카테고리 확인 (access 토큰만 허용) ===
+            String category = jwtUtil.getCategory(token);
 
-                // 401 Unauthorized: 토큰이 만료되었음을 알림
-                // 클라이언트는 다시 로그인해야 함
+            // refresh 토큰으로 API 접근 시도를 차단
+            if(!"access".equals(category)) {
+                log.error("Invalid token category: {}", category);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return;
             }
 
-            // === 2단계: 토큰에서 사용자 정보 추출 ===
+            // === 2단계: 토큰 만료 여부 확인 ===
+            if(jwtUtil.isExpired(token)) {
+                log.error("Token Timeout");
+
+                // 401 Unauthorized: 토큰이 만료되었음을 알림
+                // 클라이언트는 refresh 토큰으로 재발급해야 함
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
+
+            // === 3단계: 토큰에서 사용자 정보 추출 ===
             // JWT 토큰의 Payload에서 username(실제로는 email) 추출
             String username = jwtUtil.getUsername(token);
 
-            // === 3단계: DB에서 실제 사용자 존재 여부 확인 ===
+            // === 4단계: DB에서 실제 사용자 존재 여부 확인 ===
             // 토큰이 유효하더라도 사용자가 삭제되었을 수 있음
             User user = userRepository.findByEmail(username);
 
@@ -138,11 +151,11 @@ public class JWTFilter extends OncePerRequestFilter{
                 return;
             }
 
-            // === 4단계: Spring Security용 UserDetails 객체 생성 ===
+            // === 5단계: Spring Security용 UserDetails 객체 생성 ===
             // DB에서 조회한 User 엔티티를 Spring Security가 이해할 수 있는 형태로 변환
             CustomUserDetails customUserDetails = new CustomUserDetails(user);
 
-            // === 5단계: 인증 토큰 생성 ===
+            // === 6단계: 인증 토큰 생성 ===
             // Spring Security의 인증 객체 생성
             // 파라미터: 사용자정보, 비밀번호(null - 이미 인증됨), 권한목록
             Authentication authToken = new UsernamePasswordAuthenticationToken(
@@ -151,12 +164,12 @@ public class JWTFilter extends OncePerRequestFilter{
                 customUserDetails.getAuthorities()  // 사용자 권한 (ROLE_USER, ROLE_ADMIN 등)
             );
 
-            // === 6단계: Spring Security에 인증 정보 등록 ===
+            // === 7단계: Spring Security에 인증 정보 등록 ===
             // SecurityContextHolder: 현재 요청의 인증 정보를 저장하는 저장소
             // 이후 컨트롤러에서 @AuthenticationPrincipal로 사용자 정보 접근 가능
             SecurityContextHolder.getContext().setAuthentication(authToken);
 
-            // === 7단계: 다음 필터로 요청 전달 ===
+            // === 8단계: 다음 필터로 요청 전달 ===
             // 인증이 완료되었으므로 다음 필터/컨트롤러로 요청 전달
             filterChain.doFilter(request, response);
 

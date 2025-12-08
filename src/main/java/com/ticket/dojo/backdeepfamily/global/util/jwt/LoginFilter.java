@@ -1,9 +1,11 @@
 package com.ticket.dojo.backdeepfamily.global.util.jwt;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -11,10 +13,12 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.ticket.dojo.backdeepfamily.domain.auth.service.RefreshService;
 import com.ticket.dojo.backdeepfamily.domain.user.entity.CustomUserDetails;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +56,12 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter{
      * - 로그인 성공 시 JWT 토큰을 생성하는데 사용
      */
     private final JWTUtil jwtUtil;
+
+    /**
+     * Refresh 토큰 관리 서비스
+     * - Refresh 토큰을 DB에 저장하고 관리
+     */
+    private final RefreshService refreshService;
 
     /**
      * 로그인 인증 시도 메서드
@@ -126,37 +136,61 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter{
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
             Authentication authentication) throws IOException, ServletException {
 
-        // 인증된 사용자 정보 추출
-        // Principal은 인증의 주체(사용자)를 나타냄
-        CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
+        // // 인증된 사용자 정보 추출
+        // // Principal은 인증의 주체(사용자)를 나타냄
+        // CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        // 사용자 이름 추출 (실제로는 email)
-        String username = customUserDetails.getUsername();
-        System.out.println(username);  // 로그인한 사용자 확인용 출력
+        // // 사용자 이름 추출 (실제로는 email)
+        // String username = customUserDetails.getUsername();
+        // System.out.println(username);  // 로그인한 사용자 확인용 출력
+        
+        // // 사용자의 권한(authorities) 목록 가져오기
+        // Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
 
-        // 사용자의 권한(authorities) 목록 가져오기
+        // // 권한 목록에서 첫 번째 권한 추출
+        // // 현재는 사용자당 하나의 권한만 가지므로 첫 번째 권한 사용
+        // Iterator<? extends GrantedAuthority> iterator = authorities.iterator();
+        // GrantedAuthority auth = iterator.next();
+
+        // // 권한 문자열 추출 (예: "ROLE_USER", "ROLE_ADMIN")
+        // String role = auth.getAuthority();
+
+        // // JWT 토큰 생성
+        // // 파라미터: username(email), role, 유효기간(1시간 = 60분 * 60초 * 1000밀리초)
+        // String token = jwtUtil.createJwt(username, role, 60*60*1000L);
+
+        // // 응답 헤더에 JWT 토큰 추가
+        // // "Authorization: Bearer {토큰}" 형식
+        // // Bearer는 토큰 기반 인증의 표준 접두사
+        // response.addHeader("Authorization", "Bearer " + token);
+
+        // // 클라이언트는 이 헤더에서 토큰을 추출하여 저장하고,
+        // // 이후 모든 API 요청에 이 토큰을 포함시켜야 함
+
+        String username = authentication.getName();
+
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
-
-        // 권한 목록에서 첫 번째 권한 추출
-        // 현재는 사용자당 하나의 권한만 가지므로 첫 번째 권한 사용
         Iterator<? extends GrantedAuthority> iterator = authorities.iterator();
         GrantedAuthority auth = iterator.next();
-
-        // 권한 문자열 추출 (예: "ROLE_USER", "ROLE_ADMIN")
         String role = auth.getAuthority();
 
-        // JWT 토큰 생성
-        // 파라미터: username(email), role, 유효기간(1시간 = 60분 * 60초 * 1000밀리초)
-        String token = jwtUtil.createJwt(username, role, 60*60*1000L);
+        // Access 토큰: 10분 (600000ms)
+        String access = jwtUtil.createJwt("access", username, role, 600000L);
 
-        // 응답 헤더에 JWT 토큰 추가
-        // "Authorization: Bearer {토큰}" 형식
-        // Bearer는 토큰 기반 인증의 표준 접두사
-        response.addHeader("Authorization", "Bearer " + token);
+        // Refresh 토큰: 24시간 (86400000ms)
+        String refresh = jwtUtil.createJwt("refresh", username, role, 86400000L);
 
-        // 클라이언트는 이 헤더에서 토큰을 추출하여 저장하고,
-        // 이후 모든 API 요청에 이 토큰을 포함시켜야 함
+        // Refresh 토큰을 DB에 저장
+        LocalDateTime expiration = LocalDateTime.now().plusDays(1);
+        refreshService.saveRefreshToken(username, refresh, expiration);
+
+        // 응답 헤더와 쿠키에 토큰 추가
+        response.setHeader("access", access);
+        response.addCookie(createCookie("refresh", refresh));
+        response.setStatus(HttpStatus.OK.value());
     }
+
+    
 
     /**
      * 로그인 인증 실패 시 실행되는 메서드
@@ -192,5 +226,13 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter{
         // TODO: 향후 개선 사항
         // - 실패 사유를 JSON으로 응답 본문에 포함
         // - 예: {"error": "Invalid credentials", "message": "아이디 또는 비밀번호가 틀렸습니다."}
+    }
+
+    private Cookie createCookie(String key, String value) {
+        Cookie cookie = new Cookie(key, value);
+        cookie.setMaxAge(24*60*60);
+        cookie.setHttpOnly(true);
+
+        return cookie;
     }
 }

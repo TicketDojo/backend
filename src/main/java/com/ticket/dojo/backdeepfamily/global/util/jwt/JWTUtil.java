@@ -119,39 +119,53 @@ public class JWTUtil {
             .before(new Date());  // 현재 시간보다 이전인지 확인
     }
 
-    /**
-     * 새로운 JWT 토큰 생성
-     *
-     * @param username 사용자 이름 (실제로는 email)
-     * @param role 사용자 권한 (예: "ROLE_USER")
-     * @param expiredMs 토큰 유효 시간 (밀리초 단위, 예: 3600000 = 1시간)
-     * @return 생성된 JWT 토큰 문자열
-     *
-     * 동작 과정:
-     * 1. JWT 빌더 생성
-     * 2. Claims(토큰에 담을 정보)에 username과 role 추가
-     * 3. 발행 시간(issuedAt)을 현재 시간으로 설정
-     * 4. 만료 시간(expiration)을 현재시간 + expiredMs로 설정
-     * 5. 비밀키로 서명(signWith)하여 위조 방지
-     * 6. 최종 토큰 문자열 생성(compact)
-     *
-     * 생성되는 토큰 구조:
-     * - Header: 토큰 타입과 암호화 알고리즘 정보
-     * - Payload: username, role, 발행시간, 만료시간 등
-     * - Signature: 비밀키로 생성한 서명
-     *
-     * 예시:
-     * createJwt("user@example.com", "ROLE_USER", 3600000)
-     * → "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InVzZXJAZXhhbXBsZS5jb20iLCJyb2xlIjoiUk9MRV9VU0VSIiwiaWF0IjoxNzAzNzU4ODAwLCJleHAiOjE3MDM3NjI0MDB9.xxx..."
-     */
-    public String createJwt(String username, String role, Long expiredMs) {
-        return Jwts.builder()
-            .claim("username", username)  // 토큰에 username(실제로는 email) 저장
-            .claim("role", role)  // 토큰에 권한 정보 저장
-            .issuedAt(new Date(System.currentTimeMillis()))  // 토큰 발행 시간
-            .expiration(new Date(System.currentTimeMillis() + expiredMs))  // 토큰 만료 시간
-            .signWith(secretKey)  // 비밀키로 서명하여 위조 방지
-            .compact();  // 최종 토큰 문자열 생성
+    public String getCategory(String token) {
+        return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload().get("category", String.class);
     }
 
+    // /**
+    //  * 새로운 JWT 토큰 생성
+    //  *
+    //  * @param username 사용자 이름 (실제로는 email)
+    //  * @param role 사용자 권한 (예: "ROLE_USER")
+    //  * @param expiredMs 토큰 유효 시간 (밀리초 단위, 예: 3600000 = 1시간)
+    //  * @return 생성된 JWT 토큰 문자열
+    //  *
+    //  * 동작 과정:
+    //  * 1. JWT 빌더 생성
+    //  * 2. Claims(토큰에 담을 정보)에 username과 role 추가
+    //  * 3. 발행 시간(issuedAt)을 현재 시간으로 설정
+    //  * 4. 만료 시간(expiration)을 현재시간 + expiredMs로 설정
+    //  * 5. 비밀키로 서명(signWith)하여 위조 방지
+    //  * 6. 최종 토큰 문자열 생성(compact)
+    //  *
+    //  * 생성되는 토큰 구조:
+    //  * - Header: 토큰 타입과 암호화 알고리즘 정보
+    //  * - Payload: username, role, 발행시간, 만료시간 등
+    //  * - Signature: 비밀키로 생성한 서명
+    //  *
+    //  * 예시:
+    //  * createJwt("user@example.com", "ROLE_USER", 3600000)
+    //  * → "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InVzZXJAZXhhbXBsZS5jb20iLCJyb2xlIjoiUk9MRV9VU0VSIiwiaWF0IjoxNzAzNzU4ODAwLCJleHAiOjE3MDM3NjI0MDB9.xxx..."
+    //  */
+    // public String createJwt(String username, String role, Long expiredMs) {
+    //     return Jwts.builder()
+    //         .claim("username", username)  // 토큰에 username(실제로는 email) 저장
+    //         .claim("role", role)  // 토큰에 권한 정보 저장
+    //         .issuedAt(new Date(System.currentTimeMillis()))  // 토큰 발행 시간
+    //         .expiration(new Date(System.currentTimeMillis() + expiredMs))  // 토큰 만료 시간
+    //         .signWith(secretKey)  // 비밀키로 서명하여 위조 방지
+    //         .compact();  // 최종 토큰 문자열 생성
+    // }
+
+    public String createJwt(String category, String username, String role, Long expiredMs) {
+        return Jwts.builder()
+            .claim("category", category)
+            .claim("username", username)
+            .claim("role", role)
+            .issuedAt(new Date(System.currentTimeMillis()))
+            .expiration(new Date(System.currentTimeMillis() + expiredMs))
+            .signWith(secretKey)
+            .compact();
+    }
 }
