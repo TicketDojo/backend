@@ -26,11 +26,11 @@ public class ReservationSeat {
     @Column(nullable = false)
     private Long sequenceNum;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(nullable = false, name = "seat_id")
     private Seat seat;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(nullable = false, name = "reservation_id")
     private Reservation reservation;
 }
