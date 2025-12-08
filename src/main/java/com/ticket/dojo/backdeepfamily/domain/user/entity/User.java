@@ -5,12 +5,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user")
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -45,6 +47,7 @@ public class User {
         if (this.role == null) {
             this.role = Role.USER;
         }
+        this.updatedAt = LocalDateTime.now();
     }
 
     @PreUpdate
@@ -53,6 +56,15 @@ public class User {
     }
 
     public enum Role {
-        USER, ADMIN
+        USER, ADMIN;
+
+        // role 판별을 위한 함수
+        public static Role fromString(String value) {
+            try {
+                return valueOf(value.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return USER; // 기본값
+            }
+        }
     }
 }
