@@ -121,4 +121,20 @@ public class QueueServiceImpl implements QueueService{
 
         log.info("만료된 Queue 정리 완료 - 삭제된 개수 : {}개", expiredQueue.size());
     }
+
+    @Transactional
+    @Override
+    public void exitQueue(String token) {
+
+        log.info("대기열 퇴장 요청 - token : {}", token);
+
+        // 1. 토큰으로 Queue 조회
+        Queue queue = queueRepository.findByToken(token)
+                .orElseThrow(() -> new QueueNotFoundException("대기열을 찾을 수 없습니다 : " + token));
+
+        // 2. Queue 삭제
+        queueRepository.delete(queue);
+
+        log.info("대기열 퇴장 완료 - token : {}, userId : {}", token, queue.getUser().getUserId());
+    }
 }

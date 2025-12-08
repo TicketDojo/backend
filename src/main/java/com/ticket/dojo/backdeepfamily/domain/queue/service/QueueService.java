@@ -30,4 +30,10 @@ public interface QueueService {
      * 만료된 Queue 정리
      */
     void deleteExpiredQueue();
+
+    /***
+     * 대기열 퇴장
+     * @param token
+     */
+    void exitQueue(String token);
 }

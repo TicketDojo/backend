@@ -44,5 +44,14 @@ public class QueueController {
         return ResponseEntity.ok(response);
     }
 
+    @DeleteMapping("/exit")
+    public ResponseEntity<Void> exitQueue(@RequestParam String token){
+        log.info("대기열 퇴장 API 호출 - token : {}", token);
 
+        queueService.exitQueue(token);
+
+        log.info("대기열 퇴장 완료 - token : {}", token);
+
+        return ResponseEntity.noContent().build();
+    }
 }
