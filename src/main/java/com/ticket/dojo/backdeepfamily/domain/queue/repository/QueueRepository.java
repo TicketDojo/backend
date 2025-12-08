@@ -30,4 +30,12 @@ public interface QueueRepository extends JpaRepository<Queue, Long> {
     // expiresAt이 현재 시간보다 이전인 ACTIVE Queue 조회
     // SELECT * FROM queue WHERE status = ? AND expired_at < ?
     List<Queue> findByStatusAndExpiresAtBefore(Queue.QueueStatus status, LocalDateTime now);
+
+    // 특정 유저의 특정 상태들에 해당하는 Queue 조회
+    // SELECT * FROM queue WHERE user_id = ? AND status IN (?, ?)
+    List<Queue> findByUser_UserIdAndStatusIn(Long userId, List<Queue.QueueStatus> statuses);
+
+    // 특정 유저의 특정 상태들에 해당하는 Queue 삭제
+    // DELETE FROM queue WHERE user_id = ? AND status IN (?, ?)
+    void deleteByUser_UserIdAndStatusIn(Long userId, List<Queue.QueueStatus> statuses);
 }

@@ -20,10 +20,10 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class QueueServiceImpl implements QueueService{
+public class QueueServiceImpl implements QueueService {
 
     private final QueueRepository queueRepository;
-    //private final UserService userService;
+    // private final UserService userService;
     private final UserRepository userRepository;
 
     @Transactional
@@ -36,24 +36,38 @@ public class QueueServiceImpl implements QueueService{
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다. 유저 ID : " + userId));
 
-        // 2. 현재 Waiting 상태인 Queue 개수 조회
+        // 2. 기존 대기열 확인 및 삭제 (중복 진입 방지)
+        List<Queue> existingQueues = queueRepository.findByUser_UserIdAndStatusIn(
+                userId,
+                List.of(Queue.QueueStatus.WAITING, Queue.QueueStatus.ACTIVE));
+
+        if (!existingQueues.isEmpty()) {
+            log.info("기존 대기열 발견 - userId: {}, 개수: {}", userId, existingQueues.size());
+            queueRepository.deleteByUser_UserIdAndStatusIn(
+                    userId,
+                    List.of(Queue.QueueStatus.WAITING, Queue.QueueStatus.ACTIVE));
+            log.info("기존 대기열 삭제 완료 - userId: {}", userId);
+        }
+
+        // 3. 현재 Waiting 상태인 Queue 개수 조회 (삭제 후 재계산)
         int waitingCount = queueRepository.countByStatus(Queue.QueueStatus.WAITING);
         int currentPosition = waitingCount + 1;
 
         log.info("현재 대기 중인 사람 : {}, 내 순번 {} : {}번 째", waitingCount, userId, currentPosition);
 
-        // 3. 고유 토큰 생성
+        // 4. 고유 토큰 생성
         String token = UUID.randomUUID().toString();
 
-        // 4. Queue 엔티티 생성
+        // 5. Queue 엔티티 생성
         Queue queue = Queue.createWaitQueue(user, token, currentPosition);
 
-        // 5. DB 저장
+        // 6. DB 저장
         Queue savedQueue = queueRepository.save(queue);
 
         log.info("대기열 진입 완료 - Token : {}, User : {}, 순번 : {}", token, userId, currentPosition);
 
-        return new QueueEnterResponse(savedQueue.getToken(), savedQueue.getPosition(), savedQueue.getStatus(), savedQueue.getEnteredAt());
+        return new QueueEnterResponse(savedQueue.getToken(), savedQueue.getPosition(), savedQueue.getStatus(),
+                savedQueue.getEnteredAt());
     }
 
     @Override
@@ -85,14 +99,14 @@ public class QueueServiceImpl implements QueueService{
         // 1. Waiting 상태를 EnteredAt 순으로 조회 (최대 10명)
         List<Queue> waitingQueue = queueRepository.findTop10ByStatusOrderByEnteredAtAsc(Queue.QueueStatus.WAITING);
 
-        if(waitingQueue.isEmpty()){
+        if (waitingQueue.isEmpty()) {
             log.info("대기 중인 사람이 없습니다.");
             return;
         }
 
         // 2. 각 Queue를 Active로 전환
         LocalDateTime now = LocalDateTime.now();
-        for(Queue queue : waitingQueue){
+        for (Queue queue : waitingQueue) {
             queue.activate(now);
         }
 
@@ -111,7 +125,7 @@ public class QueueServiceImpl implements QueueService{
         LocalDateTime now = LocalDateTime.now();
         List<Queue> expiredQueue = queueRepository.findByStatusAndExpiresAtBefore(Queue.QueueStatus.ACTIVE, now);
 
-        if(expiredQueue.isEmpty()){
+        if (expiredQueue.isEmpty()) {
             log.info("만료된 Queue가 없습니다.");
             return;
         }
