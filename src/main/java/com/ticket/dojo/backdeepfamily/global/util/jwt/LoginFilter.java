@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -174,11 +175,12 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter{
         GrantedAuthority auth = iterator.next();
         String role = auth.getAuthority();
 
-        // Access 토큰: 10분 (600000ms)
+        // Access 토큰: 10분 (600000ms) - JWT 형식
         String access = jwtUtil.createJwt("access", username, role, 600000L);
 
-        // Refresh 토큰: 24시간 (86400000ms)
-        String refresh = jwtUtil.createJwt("refresh", username, role, 86400000L);
+        // Refresh 토큰: 24시간 - UUID 형식 (보안 강화)
+        // JWT 대신 UUID 사용하여 토큰 탈취 시 정보 유출 방지
+        String refresh = UUID.randomUUID().toString();
 
         // Refresh 토큰을 DB에 저장
         LocalDateTime expiration = LocalDateTime.now().plusDays(1);
