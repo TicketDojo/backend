@@ -116,21 +116,17 @@ class LoginIntegrationTest {
                 .param("password", testPassword))
                 .andDo(print())  // 요청/응답 내용 출력
                 .andExpect(status().isOk())  // 200 상태 코드
-                .andExpect(header().exists("Authorization"))  // Authorization 헤더 존재
+                .andExpect(header().exists("access"))  // access 헤더 존재
                 .andReturn();
 
-        // Authorization 헤더에서 토큰 추출
-        String authHeader = result.getResponse().getHeader("Authorization");
+        // access 헤더에서 토큰 추출
+        String accessToken = result.getResponse().getHeader("access");
 
         // 토큰 검증
-        assertThat(authHeader).isNotNull();
-        assertThat(authHeader).startsWith("Bearer ");
+        assertThat(accessToken).isNotNull();
+        assertThat(accessToken).isNotEmpty();
 
-        // "Bearer " 접두사 제거 후 순수 토큰 추출
-        String token = authHeader.substring(7);
-        assertThat(token).isNotEmpty();
-
-        System.out.println("발급된 JWT 토큰: " + token);
+        System.out.println("발급된 JWT Access 토큰: " + accessToken);
     }
 
     /**
@@ -157,7 +153,7 @@ class LoginIntegrationTest {
                 .param("password", testPassword))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())  // 401 상태 코드
-                .andExpect(header().doesNotExist("Authorization"));  // 토큰 미발급
+                .andExpect(header().doesNotExist("access"));  // 토큰 미발급
     }
 
     /**
@@ -184,7 +180,7 @@ class LoginIntegrationTest {
                 .param("password", "wrongpassword"))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())  // 401 상태 코드
-                .andExpect(header().doesNotExist("Authorization"));  // 토큰 미발급
+                .andExpect(header().doesNotExist("access"));  // 토큰 미발급
     }
 
     /**
@@ -212,20 +208,19 @@ class LoginIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        String authHeader = result.getResponse().getHeader("Authorization");
-        String token = authHeader.substring(7);  // "Bearer " 제거
+        String accessToken = result.getResponse().getHeader("access");
 
         // When & Then: 토큰 내용 검증
         // 1. username 검증
-        String username = jwtUtil.getUsername(token);
+        String username = jwtUtil.getUsername(accessToken);
         assertThat(username).isEqualTo(testEmail);
 
         // 2. role 검증
-        String role = jwtUtil.getRole(token);
+        String role = jwtUtil.getRole(accessToken);
         assertThat(role).isEqualTo("USER");  // CustomUserDetails에서 user.getRole().toString()로 반환 (ROLE_ 접두사 없음)
 
         // 3. 토큰 만료 여부 검증
-        Boolean isExpired = jwtUtil.isExpired(token);
+        Boolean isExpired = jwtUtil.isExpired(accessToken);
         assertThat(isExpired).isFalse();
 
         System.out.println("토큰 검증 결과:");
@@ -256,7 +251,7 @@ class LoginIntegrationTest {
                 .param("username", testEmail))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
-                .andExpect(header().doesNotExist("Authorization"));
+                .andExpect(header().doesNotExist("access"));
     }
 
     /**

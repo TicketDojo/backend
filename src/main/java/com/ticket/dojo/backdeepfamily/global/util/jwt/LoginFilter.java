@@ -15,7 +15,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.ticket.dojo.backdeepfamily.domain.auth.service.RefreshService;
-import com.ticket.dojo.backdeepfamily.domain.user.entity.CustomUserDetails;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -175,10 +174,10 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter{
         GrantedAuthority auth = iterator.next();
         String role = auth.getAuthority();
 
-        // Access 토큰: 10분 (600000ms) - JWT 형식
+        // Access 토큰: 10분 - JWT 형식
         String access = jwtUtil.createJwt("access", username, role, 600000L);
 
-        // Refresh 토큰: 24시간 - UUID 형식 (보안 강화)
+        // Refresh 토큰: 24시간 - UUID 형식
         // JWT 대신 UUID 사용하여 토큰 탈취 시 정보 유출 방지
         String refresh = UUID.randomUUID().toString();
 
@@ -224,10 +223,6 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter{
         // HTTP 상태 코드 401 (Unauthorized) 설정
         // 401 = 인증되지 않음 (아이디/비밀번호가 틀림)
         response.setStatus(401);
-
-        // TODO: 향후 개선 사항
-        // - 실패 사유를 JSON으로 응답 본문에 포함
-        // - 예: {"error": "Invalid credentials", "message": "아이디 또는 비밀번호가 틀렸습니다."}
     }
 
     private Cookie createCookie(String key, String value) {

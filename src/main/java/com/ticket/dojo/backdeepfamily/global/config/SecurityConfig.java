@@ -217,7 +217,7 @@ public class SecurityConfig {
                 // /login: 로그인
                 // /auth/reissue: 토큰 재발급
                 // /auth/logout: 로그아웃
-                .requestMatchers("/users/join", "/login", "/auth/reissue", "/auth/logout").permitAll()
+                .requestMatchers("/users/join", "/login", "/auth/refresh", "/auth/logout").permitAll()
 
                 // 그 외 모든 경로: 인증 필요
                 // 예: /api/users/profile, /api/orders 등

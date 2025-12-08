@@ -45,8 +45,8 @@ public class AuthController {
      * 3. 새로운 access 토큰 발급
      * 4. (선택) 새로운 refresh 토큰도 발급하여 갱신 (Refresh Token Rotation)
      */
-    @PostMapping("/reissue")
-    public ResponseEntity<?> reissue(HttpServletRequest request, HttpServletResponse response) {
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
 
         // === 1단계: 쿠키에서 refresh 토큰 추출 ===
         String refreshToken = null;
