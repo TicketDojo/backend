@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.ticket.dojo.backdeepfamily.domain.auth.service.BlackListService;
 import com.ticket.dojo.backdeepfamily.domain.user.entity.CustomUserDetails;
 import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
 import com.ticket.dojo.backdeepfamily.domain.user.repository.UserRepository;
@@ -53,6 +54,13 @@ public class JWTFilter extends OncePerRequestFilter{
      * - 삭제된 사용자의 토큰을 거부하기 위함
      */
     private final UserRepository userRepository;
+
+    /**
+     * 블랙리스트 토큰 관리 서비스
+     * - 로그아웃된 토큰 확인
+     * - 블랙리스트에 있는 토큰은 거부
+     */
+    private final BlackListService blackListService;
 
     /**
      * 모든 HTTP 요청에 대해 실행되는 필터 메서드
@@ -134,11 +142,11 @@ public class JWTFilter extends OncePerRequestFilter{
                 return;
             }
 
-            // === 3단계: 토큰에서 사용자 정보 추출 ===
+            // === 4단계: 토큰에서 사용자 정보 추출 ===
             // JWT 토큰의 Payload에서 username(실제로는 email) 추출
             String username = jwtUtil.getUsername(token);
 
-            // === 4단계: DB에서 실제 사용자 존재 여부 확인 ===
+            // === 5단계: DB에서 실제 사용자 존재 여부 확인 ===
             // 토큰이 유효하더라도 사용자가 삭제되었을 수 있음
             User user = userRepository.findByEmail(username);
 
@@ -151,11 +159,11 @@ public class JWTFilter extends OncePerRequestFilter{
                 return;
             }
 
-            // === 5단계: Spring Security용 UserDetails 객체 생성 ===
+            // === 6단계: Spring Security용 UserDetails 객체 생성 ===
             // DB에서 조회한 User 엔티티를 Spring Security가 이해할 수 있는 형태로 변환
             CustomUserDetails customUserDetails = new CustomUserDetails(user);
 
-            // === 6단계: 인증 토큰 생성 ===
+            // === 7단계: 인증 토큰 생성 ===
             // Spring Security의 인증 객체 생성
             // 파라미터: 사용자정보, 비밀번호(null - 이미 인증됨), 권한목록
             Authentication authToken = new UsernamePasswordAuthenticationToken(
@@ -164,12 +172,12 @@ public class JWTFilter extends OncePerRequestFilter{
                 customUserDetails.getAuthorities()  // 사용자 권한 (ROLE_USER, ROLE_ADMIN 등)
             );
 
-            // === 7단계: Spring Security에 인증 정보 등록 ===
+            // === 8단계: Spring Security에 인증 정보 등록 ===
             // SecurityContextHolder: 현재 요청의 인증 정보를 저장하는 저장소
             // 이후 컨트롤러에서 @AuthenticationPrincipal로 사용자 정보 접근 가능
             SecurityContextHolder.getContext().setAuthentication(authToken);
 
-            // === 8단계: 다음 필터로 요청 전달 ===
+            // === 9단계: 다음 필터로 요청 전달 ===
             // 인증이 완료되었으므로 다음 필터/컨트롤러로 요청 전달
             filterChain.doFilter(request, response);
 

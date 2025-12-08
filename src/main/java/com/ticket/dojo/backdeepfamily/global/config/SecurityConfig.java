@@ -14,6 +14,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.ticket.dojo.backdeepfamily.domain.auth.service.BlackListService;
 import com.ticket.dojo.backdeepfamily.domain.auth.service.RefreshService;
 import com.ticket.dojo.backdeepfamily.domain.user.repository.UserRepository;
 import com.ticket.dojo.backdeepfamily.global.util.jwt.JWTFilter;
@@ -65,6 +66,12 @@ public class SecurityConfig {
      * - LoginFilter에서 refresh 토큰을 DB에 저장하는데 사용
      */
     private final RefreshService refreshService;
+
+    /**
+     * 블랙리스트 토큰 관리 서비스
+     * - JWTFilter에서 로그아웃된 토큰 검증에 사용
+     */
+    private final BlackListService blackListService;
 
     /**
      * AuthenticationManager 빈 등록
@@ -223,7 +230,8 @@ public class SecurityConfig {
         // JWTFilter: 모든 요청의 JWT 토큰을 검증
         // - 토큰이 유효하면 Spring Security에 인증 정보 등록
         // - 토큰이 없거나 유효하지 않으면 401 에러 또는 다음 필터로 전달
-        http.addFilterBefore(new JWTFilter(jwtUtil, userRepository), LoginFilter.class);
+        // - 블랙리스트에 있는 토큰은 거부
+        http.addFilterBefore(new JWTFilter(jwtUtil, userRepository, blackListService), LoginFilter.class);
 
         // === 로그인 필터 추가 ===
         // UsernamePasswordAuthenticationFilter 위치에 커스텀 LoginFilter 배치
