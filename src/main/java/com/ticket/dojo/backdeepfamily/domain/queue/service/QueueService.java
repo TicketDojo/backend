@@ -19,4 +19,15 @@ public interface QueueService {
      * @return : 대기열 상태 응답 (토큰, 순번, 상태, 진입, 활성시간, 만료시간)
      */
     QueueStatusResponse getQueueStatus(String token);
+
+    /***
+     * 대기 중인 사람을 Active로 전환
+     * @param count
+     */
+    void activateNextInQueue(int count);
+
+    /***
+     * 만료된 Queue 정리
+     */
+    void deleteExpiredQueue();
 }

@@ -78,4 +78,11 @@ public class Queue {
                 .updatedAt(LocalDateTime.now())
                 .build();
     }
+
+    public void activate(LocalDateTime now){
+        this.status = QueueStatus.ACTIVE;
+        this.activatedAt = now;
+        this.expiresAt = now.plusMinutes(10);
+        this.updatedAt = now;
+    }
 }

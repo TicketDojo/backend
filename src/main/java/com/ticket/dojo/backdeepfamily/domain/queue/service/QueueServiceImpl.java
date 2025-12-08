@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -73,5 +75,50 @@ public class QueueServiceImpl implements QueueService{
         log.info("대기열 상태 조회 완료 - Token : {}, 순번 : {}, 상태 : {} ", token, currentPosition, queue.getStatus());
 
         return new QueueStatusResponse(queue.getToken(), currentPosition, queue.getStatus(), queue.getEnteredAt(), queue.getActivatedAt(), queue.getExpiresAt());
+    }
+
+    @Override
+    public void activateNextInQueue(int count) {
+
+        log.info("대기열 활성화 시작 - 활성화할 인원 : {}명", count);
+
+        // 1. Waiting 상태를 EnteredAt 순으로 조회 (최대 10명)
+        List<Queue> waitingQueue = queueRepository.findTop10ByStatusOrderByEnteredAtAsc(Queue.QueueStatus.WAITING);
+
+        if(waitingQueue.isEmpty()){
+            log.info("대기 중인 사람이 없습니다.");
+            return;
+        }
+
+        // 2. 각 Queue를 Active로 전환
+        LocalDateTime now = LocalDateTime.now();
+        for(Queue queue : waitingQueue){
+            queue.activate(now);
+        }
+
+        // 3. 저장
+        queueRepository.saveAll(waitingQueue);
+
+        log.info("대기열 활성화 완료 - 활성화된 인원 : {}명", waitingQueue.size());
+    }
+
+    @Override
+    public void deleteExpiredQueue() {
+
+        log.info("만료된 Queue 정리 시작");
+
+        // 1. 만료된 ACTIVE Queue 조회
+        LocalDateTime now = LocalDateTime.now();
+        List<Queue> expiredQueue = queueRepository.findByStatusAndExpiresAtBefore(Queue.QueueStatus.ACTIVE, now);
+
+        if(expiredQueue.isEmpty()){
+            log.info("만료된 Queue가 없습니다.");
+            return;
+        }
+
+        // 2. 삭제
+        queueRepository.deleteAll(expiredQueue);
+
+        log.info("만료된 Queue 정리 완료 - 삭제된 개수 : {}개", expiredQueue.size());
     }
 }
