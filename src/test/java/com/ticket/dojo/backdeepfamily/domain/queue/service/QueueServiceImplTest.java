@@ -60,6 +60,22 @@ class QueueServiceImplTest {
     }
 
     @Test
+    @DisplayName("대기열 재진입")
+    @Transactional
+    void reenterQueue(){
+        // given
+        QueueEnterResponse response1 = queueService.enterQueue(testUser1.getUserId());
+        String token1 = response1.getToken();
+
+        // when
+        QueueEnterResponse response2 = queueService.enterQueue(testUser1.getUserId());
+        String token2 = response2.getToken();
+
+        // then
+        assertNotEquals(token1, token2);
+    }
+
+    @Test
     @DisplayName("태기열 상태 조회 성공")
     @Transactional
     void getQueueStatusSuccess(){
@@ -102,6 +118,7 @@ class QueueServiceImplTest {
 
     @Test
     @DisplayName("존재하지 않는 토큰으로 조회 시 예외 발생")
+    @Transactional
     void tokenNotFoundException(){
         // given
         String token = "123";
