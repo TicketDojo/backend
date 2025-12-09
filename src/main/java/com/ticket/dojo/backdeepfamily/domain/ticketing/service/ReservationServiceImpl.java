@@ -90,7 +90,7 @@ public class ReservationServiceImpl implements ReservationService {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ReservationException("예약을 찾을 수 없습니다. 예약 ID : " + reservationId));
 
-        if (reservation.getUser().getUserId().equals(userId)) {
+        if (!reservation.getUser().getUserId().equals(userId)) {
             throw new ReservationException("비정상적인 접근입니다.");
         }
         reservation.changeState(CONFIRMED);
