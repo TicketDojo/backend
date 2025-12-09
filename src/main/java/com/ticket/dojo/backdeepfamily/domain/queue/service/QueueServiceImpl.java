@@ -53,7 +53,7 @@ public class QueueServiceImpl implements QueueService {
         int waitingCount = queueRepository.countByStatus(Queue.QueueStatus.WAITING);
         int currentPosition = waitingCount + 1;
 
-        log.info("현재 대기 중인 사람 : {}, 내 순번 {} : {}번 째", waitingCount, userId, currentPosition);
+        log.info("대기열 진입 - userId: {}, 현재 대기 인원: {}, 배정된 순번: {}", userId, waitingCount, currentPosition);
 
         // 4. 고유 토큰 생성
         String token = UUID.randomUUID().toString();
