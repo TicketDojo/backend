@@ -76,7 +76,7 @@ class QueueServiceImplTest {
     }
 
     @Test
-    @DisplayName("태기열 상태 조회 성공")
+    @DisplayName("대기열 상태 조회 성공")
     @Transactional
     void getQueueStatusSuccess(){
         // given
