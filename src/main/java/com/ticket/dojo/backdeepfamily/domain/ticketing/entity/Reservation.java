@@ -41,6 +41,7 @@ public class Reservation {
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
         if (this.reservationState == null) {
             this.reservationState = ReservationState.PENDING;
         }
@@ -49,6 +50,10 @@ public class Reservation {
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void changeState(ReservationState reservationState) {
+        this.reservationState = reservationState;
     }
 
     public enum ReservationState {

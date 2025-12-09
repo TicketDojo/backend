@@ -33,4 +33,8 @@ public class ReservationSeat {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(nullable = false, name = "reservation_id")
     private Reservation reservation;
+
+    public void refreshExpiredAt(LocalDateTime localDateTime) {
+        expiredAt = localDateTime;
+    }
 }
