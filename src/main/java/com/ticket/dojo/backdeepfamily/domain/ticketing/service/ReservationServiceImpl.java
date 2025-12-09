@@ -48,11 +48,7 @@ public class ReservationServiceImpl implements ReservationService {
                 reservation.changeState(PAYING);
 
                 reservationSeatRepository.findAllByReservation(reservation)
-                                .forEach(seat -> seat.refreshExpiredAt(LocalDateTime.now().plusSeconds(HOLD_SECONDS)) // 지금부터
-                                                                                                                      // +
-                                                                                                                      // 20초로
-                                                                                                                      // 초기화
-                                );
+                                .forEach(seat -> seat.refreshExpiredAt(LocalDateTime.now().plusSeconds(HOLD_SECONDS))); // 현재시간 + 20초로 초기화
         }
 
         /**
@@ -89,6 +85,13 @@ public class ReservationServiceImpl implements ReservationService {
         @Transactional
         @Override
         public void completePaying(Long userId, Long reservationId) {
+                // 결제 처리 시뮬레이션 - 3초 딜레이
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e) {
+                        throw new ReservationException("결제 처리 중 오류가 발생했습니다.");
+                }
+
                 Reservation reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new ReservationException("예약을 찾을 수 없습니다. 예약 ID : " + reservationId));
 
