@@ -1,4 +1,4 @@
-package com.ticket.dojo.backdeepfamily.domain.ticketing.dto.response;
+package com.ticket.dojo.backdeepfamily.domain.ticketing.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SocketErrorResponse {
+public class SocketError {
     //ERROR
     private String type;
     private String message;

@@ -25,21 +25,20 @@ public class TicketingSocketServiceImpl implements TicketingSocketService {
 
         @Override
         @Transactional
-        public void holdSeat(Long seatId, Long reservationId, Long sequenceNum) {
+        public void holdSeat(Long seatId, Long reservationId) {
                 Reservation reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
 
                 Seat seat = seatRepository.findById(seatId)
                                 .orElseThrow(() -> new SeatNotFoundException(seatId));
 
-                if (reservationSeatRepository.existsBySeatAndSequenceNum(seat, sequenceNum)) {
-                        throw new SeatAlreadyHeldException(seatId, sequenceNum);
+                if (reservationSeatRepository.existsBySeat(seat)) {
+                        throw new SeatAlreadyHeldException(seatId);
                 }
 
                 ReservationSeat reservationSeat = ReservationSeat.builder()
                                 .seat(seat)
                                 .reservation(reservation)
-                                .sequenceNum(sequenceNum)
                                 .expiredAt(LocalDateTime.now().plusSeconds(HOLD_SECONDS))
                                 .build();
 
@@ -48,7 +47,7 @@ public class TicketingSocketServiceImpl implements TicketingSocketService {
 
         @Override
         @Transactional
-        public void releaseSeat(Long reservationId, Long sequenceNum, Long seatId) {
+        public void releaseSeat(Long reservationId, Long seatId) {
                 Reservation reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
 
@@ -57,8 +56,7 @@ public class TicketingSocketServiceImpl implements TicketingSocketService {
 
                 reservationSeatRepository.findAllByReservation(reservation)
                                 .stream()
-                                .filter(rs -> rs.getSeat().equals(seat)
-                                                && rs.getSequenceNum().equals(sequenceNum))
+                                .filter(rs -> rs.getSeat().equals(seat))
                                 .findFirst()
                                 .ifPresent(reservationSeatRepository::delete);
         }

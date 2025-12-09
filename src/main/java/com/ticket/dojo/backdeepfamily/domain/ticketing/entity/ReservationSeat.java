@@ -23,11 +23,8 @@ public class ReservationSeat {
     @Column(nullable = false)
     private LocalDateTime expiredAt;
 
-    @Column(nullable = false)
-    private Long sequenceNum;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(nullable = false, name = "seat_id")
+    @JoinColumn(nullable = false, name = "seat_id", unique = true)
     private Seat seat;
 
     @ManyToOne(fetch = FetchType.LAZY)

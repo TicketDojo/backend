@@ -32,7 +32,7 @@ public class SeatTimeoutScheduler {
     public void releaseExpiredSeats() {
         LocalDateTime now = LocalDateTime.now();
 
-        List<ReservationSeat> expiredSeats = reservationSeatRepository.findAllExpiredAtBefore(now);
+        List<ReservationSeat> expiredSeats = reservationSeatRepository.findAllByExpiredAtBefore(now);
 
         if (expiredSeats.isEmpty()) {
             return;
@@ -44,7 +44,7 @@ public class SeatTimeoutScheduler {
 
         // 각 Reservation 처리
         seatsByReservation.forEach((reservation, seats) -> {
-            Long sequenceNum = seats.get(0).getSequenceNum();
+            Long sequenceNum = reservation.getSequenceNum();
             List<Long> seatIds = seats.stream()
                     .map(rs -> rs.getSeat().getId())
                     .collect(Collectors.toList());
@@ -78,7 +78,7 @@ public class SeatTimeoutScheduler {
              */
             simpMessagingTemplate.convertAndSendToUser(
                     userEmail,
-                    "/queue/timeout", //user/queue/timeout
+                    "/queue/timeout", // user/queue/timeout
                     SeatTimeoutNotification.builder()
                             .type("TIMEOUT")
                             .reservationId(reservation.getId())

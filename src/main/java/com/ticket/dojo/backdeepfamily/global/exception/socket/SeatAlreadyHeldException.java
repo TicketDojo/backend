@@ -8,17 +8,14 @@ import lombok.Getter;
 @Getter
 public class SeatAlreadyHeldException extends RuntimeException {
     private final Long seatId;
-    private final Long sequenceNum;
 
-    public SeatAlreadyHeldException(Long seatId, Long sequenceNum) {
-        super("이미 점유된 좌석입니다. (좌석 ID: " + seatId + ", 회차: " + sequenceNum + ")");
+    public SeatAlreadyHeldException(Long seatId) {
+        super("이미 점유된 좌석입니다. (좌석 ID: " + seatId + ")");
         this.seatId = seatId;
-        this.sequenceNum = sequenceNum;
     }
 
-    public SeatAlreadyHeldException(String message, Long seatId, Long sequenceNum) {
+    public SeatAlreadyHeldException(String message, Long seatId) {
         super(message);
         this.seatId = seatId;
-        this.sequenceNum = sequenceNum;
     }
 }

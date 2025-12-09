@@ -2,8 +2,10 @@ package com.ticket.dojo.backdeepfamily.domain.ticketing.controller;
 
 import com.ticket.dojo.backdeepfamily.domain.ticketing.dto.request.SeatHoldRequest;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.dto.request.SeatReleaseRequest;
-import com.ticket.dojo.backdeepfamily.domain.ticketing.dto.response.SocketErrorResponse;
+import com.ticket.dojo.backdeepfamily.domain.ticketing.dto.SocketError;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.dto.response.SeatStatusEventResponse;
+import com.ticket.dojo.backdeepfamily.domain.ticketing.entity.Reservation;
+import com.ticket.dojo.backdeepfamily.domain.ticketing.repository.ReservationRepository;
 import com.ticket.dojo.backdeepfamily.global.exception.socket.ReservationNotFoundException;
 import com.ticket.dojo.backdeepfamily.global.exception.socket.SeatAlreadyHeldException;
 import com.ticket.dojo.backdeepfamily.global.exception.socket.SeatNotFoundException;
@@ -19,11 +21,10 @@ import org.springframework.stereotype.Controller;
 @Slf4j
 @Controller
 @RequiredArgsConstructor
-/// 클라이언트 -> 서버의 MessageMapping 설정 주소로 메세지 전송
 public class TicketingSocketController {
-        /// SimpMessagingTemplate: subscribe된 특정 목적지로 메시지를 브로드캐스팅하는 데 활용
         private final SimpMessagingTemplate simpMessagingTemplate;
         private final TicketingSocketService ticketingSocketService;
+        private final ReservationRepository reservationRepository;
 
         /**
          * 좌석 점유
@@ -31,10 +32,14 @@ public class TicketingSocketController {
          */
         @MessageMapping("/seat/hold")
         public void holdSeat(SeatHoldRequest request) {
-                ticketingSocketService.holdSeat(request.getSeatId(), request.getReservationId(),
-                                request.getSequenceNum());
+                // sequenceNum 파라미터 제거
+                ticketingSocketService.holdSeat(request.getSeatId(), request.getReservationId());
 
-                simpMessagingTemplate.convertAndSend("/sub/round/" + request.getSequenceNum() + "/seats",
+                // Reservation에서 sequenceNum 조회
+                Reservation reservation = reservationRepository.findById(request.getReservationId())
+                                .orElseThrow(() -> new ReservationNotFoundException(request.getReservationId()));
+
+                simpMessagingTemplate.convertAndSend("/sub/round/" + reservation.getSequenceNum() + "/seats",
                                 SeatStatusEventResponse.builder()
                                                 .type("HOLD")
                                                 .seatId(request.getSeatId())
@@ -48,14 +53,15 @@ public class TicketingSocketController {
          */
         @MessageMapping("/seat/release")
         public void releaseSeat(SeatReleaseRequest request) {
+                // sequenceNum 파라미터 제거
+                ticketingSocketService.releaseSeat(request.getReservationId(), request.getSeatId());
 
-                ticketingSocketService.releaseSeat(
-                                request.getReservationId(),
-                                request.getSequenceNum(),
-                                request.getSeatId());
+                // Reservation에서 sequenceNum 조회
+                Reservation reservation = reservationRepository.findById(request.getReservationId())
+                                .orElseThrow(() -> new ReservationNotFoundException(request.getReservationId()));
 
                 simpMessagingTemplate.convertAndSend(
-                                "/sub/round/" + request.getSequenceNum() + "/seats",
+                                "/sub/round/" + reservation.getSequenceNum() + "/seats",
                                 SeatStatusEventResponse.builder()
                                                 .type("RELEASE")
                                                 .seatId(request.getSeatId())
@@ -65,14 +71,15 @@ public class TicketingSocketController {
 
         /**
          * 웹소켓 예외 처리 - 모든 RuntimeException 통합 처리
+         * 
          * @SendToUser: 해당 사용자에게만 에러 메시지 전송 (/user/queue/errors)
          */
         @MessageExceptionHandler(RuntimeException.class)
         @SendToUser("/queue/errors")
-        public SocketErrorResponse handleRuntimeException(RuntimeException ex) {
+        public SocketError handleRuntimeException(RuntimeException ex) {
                 log.error("웹소켓 처리 중 예외 발생: {}", ex.getMessage());
 
-                SocketErrorResponse.SocketErrorResponseBuilder builder = SocketErrorResponse.builder()
+                SocketError.SocketErrorBuilder builder = SocketError.builder()
                                 .type("ERROR")
                                 .message(ex.getMessage());
 

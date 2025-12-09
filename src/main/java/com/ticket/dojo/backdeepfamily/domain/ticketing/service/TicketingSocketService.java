@@ -1,7 +1,7 @@
 package com.ticket.dojo.backdeepfamily.domain.ticketing.service;
 
 public interface TicketingSocketService {
-    void holdSeat(Long seatId, Long reservationId, Long sequenceNum);
+    void holdSeat(Long seatId, Long reservationId);
 
-    void releaseSeat(Long reservationId, Long sequenceNum, Long seatId);
+    void releaseSeat(Long reservationId, Long seatId);
 }

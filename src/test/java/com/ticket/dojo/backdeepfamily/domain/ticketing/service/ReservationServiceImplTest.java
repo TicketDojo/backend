@@ -81,7 +81,6 @@ class ReservationServiceImplTest {
                 .id(1L)
                 .seat(testSeat)
                 .reservation(testReservation)
-                .sequenceNum(testSequenceNum)
                 .expiredAt(LocalDateTime.now().plusSeconds(20))
                 .build();
     }
@@ -127,11 +126,11 @@ class ReservationServiceImplTest {
         given(userRepository.findById(testUserId))
                 .willReturn(Optional.of(testUser));
 
+        given(reservationSeatRepository.findAll())
+                .willReturn(List.of(testReservationSeat));
+
         given(reservationRepository.save(any(Reservation.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
-
-        given(reservationSeatRepository.findAllBySequenceNum(anyLong()))
-                .willReturn(List.of(testReservationSeat));
 
         // when
         GetHoldingSeatsResponse response = reservationService.enterTicketing(testUserId);
@@ -147,7 +146,7 @@ class ReservationServiceImplTest {
 
         verify(userRepository, times(1)).findById(testUserId);
         verify(reservationRepository, times(1)).save(any(Reservation.class));
-        verify(reservationSeatRepository, times(1)).findAllBySequenceNum(anyLong());
+        verify(reservationSeatRepository, times(1)).findAll();
     }
 
     @Test

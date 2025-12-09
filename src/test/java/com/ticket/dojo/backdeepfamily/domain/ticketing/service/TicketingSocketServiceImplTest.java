@@ -20,7 +20,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -82,18 +81,18 @@ class TicketingSocketServiceImplTest {
                 .willReturn(Optional.of(testReservation));
         given(seatRepository.findById(testSeatId))
                 .willReturn(Optional.of(testSeat));
-        given(reservationSeatRepository.existsBySeatAndSequenceNum(testSeat, testSequenceNum))
+        given(reservationSeatRepository.existsBySeat(testSeat))
                 .willReturn(false);
         given(reservationSeatRepository.save(any(ReservationSeat.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        ticketingSocketService.holdSeat(testSeatId, testReservationId, testSequenceNum);
+        ticketingSocketService.holdSeat(testSeatId, testReservationId);
 
         // then
         verify(reservationRepository, times(1)).findById(testReservationId);
         verify(seatRepository, times(1)).findById(testSeatId);
-        verify(reservationSeatRepository, times(1)).existsBySeatAndSequenceNum(testSeat, testSequenceNum);
+        verify(reservationSeatRepository, times(1)).existsBySeat(testSeat);
         verify(reservationSeatRepository, times(1)).save(any(ReservationSeat.class));
     }
 
@@ -105,7 +104,7 @@ class TicketingSocketServiceImplTest {
                 .willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> ticketingSocketService.holdSeat(testSeatId, testReservationId, testSequenceNum))
+        assertThatThrownBy(() -> ticketingSocketService.holdSeat(testSeatId, testReservationId))
                 .isInstanceOf(ReservationNotFoundException.class)
                 .hasMessageContaining("예약을 찾을 수 없습니다");
 
@@ -124,7 +123,7 @@ class TicketingSocketServiceImplTest {
                 .willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> ticketingSocketService.holdSeat(testSeatId, testReservationId, testSequenceNum))
+        assertThatThrownBy(() -> ticketingSocketService.holdSeat(testSeatId, testReservationId))
                 .isInstanceOf(SeatNotFoundException.class)
                 .hasMessageContaining("좌석을 찾을 수 없습니다");
 
@@ -141,17 +140,17 @@ class TicketingSocketServiceImplTest {
                 .willReturn(Optional.of(testReservation));
         given(seatRepository.findById(testSeatId))
                 .willReturn(Optional.of(testSeat));
-        given(reservationSeatRepository.existsBySeatAndSequenceNum(testSeat, testSequenceNum))
+        given(reservationSeatRepository.existsBySeat(testSeat))
                 .willReturn(true);
 
         // when & then
-        assertThatThrownBy(() -> ticketingSocketService.holdSeat(testSeatId, testReservationId, testSequenceNum))
+        assertThatThrownBy(() -> ticketingSocketService.holdSeat(testSeatId, testReservationId))
                 .isInstanceOf(SeatAlreadyHeldException.class)
                 .hasMessageContaining("이미 점유된 좌석입니다");
 
         verify(reservationRepository, times(1)).findById(testReservationId);
         verify(seatRepository, times(1)).findById(testSeatId);
-        verify(reservationSeatRepository, times(1)).existsBySeatAndSequenceNum(testSeat, testSequenceNum);
+        verify(reservationSeatRepository, times(1)).existsBySeat(testSeat);
         verify(reservationSeatRepository, never()).save(any());
     }
 
@@ -163,7 +162,6 @@ class TicketingSocketServiceImplTest {
                 .id(1L)
                 .seat(testSeat)
                 .reservation(testReservation)
-                .sequenceNum(testSequenceNum)
                 .build();
 
         given(reservationRepository.findById(testReservationId))
@@ -174,7 +172,7 @@ class TicketingSocketServiceImplTest {
                 .willReturn(java.util.List.of(reservationSeat));
 
         // when
-        ticketingSocketService.releaseSeat(testReservationId, testSequenceNum, testSeatId);
+        ticketingSocketService.releaseSeat(testReservationId, testSeatId);
 
         // then
         verify(reservationRepository, times(1)).findById(testReservationId);
@@ -191,7 +189,7 @@ class TicketingSocketServiceImplTest {
                 .willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> ticketingSocketService.releaseSeat(testReservationId, testSequenceNum, testSeatId))
+        assertThatThrownBy(() -> ticketingSocketService.releaseSeat(testReservationId, testSeatId))
                 .isInstanceOf(ReservationNotFoundException.class)
                 .hasMessageContaining("예약을 찾을 수 없습니다");
 
@@ -210,7 +208,7 @@ class TicketingSocketServiceImplTest {
                 .willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> ticketingSocketService.releaseSeat(testReservationId, testSequenceNum, testSeatId))
+        assertThatThrownBy(() -> ticketingSocketService.releaseSeat(testReservationId, testSeatId))
                 .isInstanceOf(SeatNotFoundException.class)
                 .hasMessageContaining("좌석을 찾을 수 없습니다");
 
