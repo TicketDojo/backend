@@ -29,12 +29,13 @@ public class UserServiceImpl implements UserService{
             return;
         }
 
-        User data = new User();
-
-        data.setEmail(email);
-        data.setName(email); // email을 name으로도 사용
-        data.setPassword(bCryptPasswordEncoder.encode(password));
-        data.setRole(Role.USER);
+        // Builder 패턴으로 User 생성
+        User data = User.builder()
+                .email(email)
+                .name(email) // email을 name으로도 사용
+                .password(bCryptPasswordEncoder.encode(password))
+                .role(Role.USER)
+                .build();
 
         userRepository.save(data);
     }

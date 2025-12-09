@@ -1,21 +1,25 @@
 package com.ticket.dojo.backdeepfamily.domain.user.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+/**
+ * 사용자 엔티티
+ *
+ * 도메인 규칙:
+ * - Setter를 제거하여 무분별한 상태 변경 방지
+ * - 도메인 메서드를 통해서만 상태 변경 가능
+ * - 생성은 Builder 패턴 사용
+ */
 @Entity
 @Table(name = "user")
 @Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
 
     @Id
@@ -41,6 +45,17 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    /**
+     * Builder 패턴을 위한 생성자
+     */
+    @Builder
+    public User(String email, String password, String name, Role role) {
+        this.email = email;
+        this.password = password;
+        this.name = name;
+        this.role = role != null ? role : Role.USER;
+    }
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
@@ -53,6 +68,36 @@ public class User {
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 도메인 메서드: 비밀번호 변경
+     */
+    public void changePassword(String newPassword) {
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new IllegalArgumentException("Password cannot be null or empty");
+        }
+        this.password = newPassword;
+    }
+
+    /**
+     * 도메인 메서드: 이름 변경
+     */
+    public void changeName(String newName) {
+        if (newName == null || newName.isBlank()) {
+            throw new IllegalArgumentException("Name cannot be null or empty");
+        }
+        this.name = newName;
+    }
+
+    /**
+     * 도메인 메서드: 권한 변경
+     */
+    public void changeRole(Role newRole) {
+        if (newRole == null) {
+            throw new IllegalArgumentException("Role cannot be null");
+        }
+        this.role = newRole;
     }
 
     public enum Role {

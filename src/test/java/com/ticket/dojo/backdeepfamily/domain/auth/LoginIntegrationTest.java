@@ -72,11 +72,12 @@ class LoginIntegrationTest {
         testPassword = "password123";
 
         // 테스트용 사용자 생성
-        testUser = new User();
-        testUser.setEmail(testEmail);
-        testUser.setName(testEmail);
-        testUser.setPassword(bCryptPasswordEncoder.encode(testPassword));
-        testUser.setRole(Role.USER);
+        testUser = User.builder()
+                .email(testEmail)
+                .name(testEmail)
+                .password(bCryptPasswordEncoder.encode(testPassword))
+                .role(Role.USER)
+                .build();
 
         userRepository.save(testUser);
     }

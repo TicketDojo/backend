@@ -18,7 +18,6 @@ import com.ticket.dojo.backdeepfamily.domain.auth.service.RefreshService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -187,7 +186,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter{
 
         // 응답 헤더와 쿠키에 토큰 추가
         response.setHeader("access", access);
-        response.addCookie(createCookie("refresh", refresh));
+        response.addCookie(com.ticket.dojo.backdeepfamily.global.util.cookie.CookieUtil.createCookie("refresh", refresh));
         response.setStatus(HttpStatus.OK.value());
     }
 
@@ -225,11 +224,4 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter{
         response.setStatus(401);
     }
 
-    private Cookie createCookie(String key, String value) {
-        Cookie cookie = new Cookie(key, value);
-        cookie.setMaxAge(24*60*60);
-        cookie.setHttpOnly(true);
-
-        return cookie;
-    }
 }
