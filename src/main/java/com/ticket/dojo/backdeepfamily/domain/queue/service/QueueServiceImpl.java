@@ -91,6 +91,7 @@ public class QueueServiceImpl implements QueueService {
         return new QueueStatusResponse(queue.getToken(), currentPosition, queue.getStatus(), queue.getEnteredAt(), queue.getActivatedAt(), queue.getExpiresAt());
     }
 
+    @Transactional
     @Override
     public void activateNextInQueue(int count) {
 
@@ -116,6 +117,7 @@ public class QueueServiceImpl implements QueueService {
         log.info("대기열 활성화 완료 - 활성화된 인원 : {}명", waitingQueue.size());
     }
 
+    @Transactional
     @Override
     public void deleteExpiredQueue() {
 
