@@ -17,17 +17,8 @@ public class QueueScheduler {
      * 5초마다 대기자들 Active로 전환
      */
     @Scheduled(fixedDelay = 5000)
-    public void activateNextInQueue(){
+    public void activateNextInQueue() {
         log.debug("스케줄러 실행 : 대기자 Active로 전환");
-        queueService.activateNextInQueue(10);
-    }
-
-    /***
-     * 1분마다 만료된 Queue 정리
-     */
-    @Scheduled(fixedDelay = 60000)
-    public void deleteExpiredQueue(){
-        log.debug("스케줄러 실행 : 만료 Queue 정리");
-        queueService.deleteExpiredQueue();
+        queueService.activateNextInQueue();
     }
 }
