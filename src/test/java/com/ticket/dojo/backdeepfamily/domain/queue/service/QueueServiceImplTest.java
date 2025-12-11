@@ -6,7 +6,6 @@ import com.ticket.dojo.backdeepfamily.domain.queue.entity.Queue;
 import com.ticket.dojo.backdeepfamily.domain.queue.repository.QueueRepository;
 import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
 import com.ticket.dojo.backdeepfamily.domain.user.repository.UserRepository;
-import com.ticket.dojo.backdeepfamily.global.exception.QueueNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,8 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 class QueueServiceImplTest {
@@ -29,109 +29,181 @@ class QueueServiceImplTest {
     @Autowired
     private QueueRepository queueRepository;
 
-    private User testUser1;
-    private User testUser2;
-    private User testUser3;
-
     @BeforeEach
-    void setTestUser(){
-        // 테스트용 User 생성
-        testUser1 = User.builder().email("test1@test.com").name("테스트유저1").password("qwe123").build();
-        testUser2 = User.builder().email("test2@test.com").name("테스트유저2").password("qwe123").build();
-        testUser3 = User.builder().email("test3@test.com").name("테스트유저3").password("qwe123").build();
-
-        userRepository.save(testUser1);
-        userRepository.save(testUser2);
-        userRepository.save(testUser3);
+    void setUp() {
+        // DB 초기화
+        queueRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test
-    @DisplayName("1인 대기열 진입")
+    @DisplayName("1. 1인 대기열 입장 -> 즉시 Active")
     @Transactional
-    void enterQueue_One(){
-        // when
-        QueueEnterResponse response = queueService.enterQueue(testUser1.getUserId());
-
-        // then
-        assertNotNull(response.getToken());
-        assertEquals(1, response.getPosition());
-        assertEquals(Queue.QueueStatus.WAITING, response.getStatus());
-        assertNotNull(response.getEnteredAt());
-    }
-
-    @Test
-    @DisplayName("태기열 상태 조회 성공")
-    @Transactional
-    void getQueueStatusSuccess(){
+    void enterQueue_One() {
         // given
-        QueueEnterResponse enterResponse = queueService.enterQueue(testUser1.getUserId());
-        String token = enterResponse.getToken();
+        User user = createAndSaveUser("u1");
 
         // when
-        QueueStatusResponse statusResponse = queueService.getQueueStatus(token);
+        QueueEnterResponse response = queueService.enterQueue(user.getUserId());
 
         // then
-        assertEquals(token, statusResponse.getToken());
-        assertEquals(1, statusResponse.getPosition());
-        assertEquals(Queue.QueueStatus.WAITING, statusResponse.getStatus());
-        assertEquals(enterResponse.getEnteredAt(), statusResponse.getEnteredAt());
-        assertNull(statusResponse.getActivatedAt());
-        assertNull(statusResponse.getExpiresAt());
-
+        assertEquals(Queue.QueueStatus.ACTIVE, response.getStatus()); // 50명 미만이므로 Active
+        assertEquals(0, response.getPosition()); // Active는 순번 의미 없음 (0)
+        assertEquals(1, queueRepository.countByStatus(Queue.QueueStatus.ACTIVE));
     }
 
     @Test
-    @DisplayName("여러명 진입 수 순번 확인")
+    @DisplayName("2. 10인 대기열 입장 -> 모두 Active")
     @Transactional
-    void manyPeople_EnterQueue(){
+    void enterQueue_Ten() {
         // given
-        QueueEnterResponse response1 = queueService.enterQueue(testUser1.getUserId());
-        QueueEnterResponse response2 = queueService.enterQueue(testUser2.getUserId());
-        QueueEnterResponse response3 = queueService.enterQueue(testUser3.getUserId());
+        for (int i = 0; i < 10; i++) {
+            User user = createAndSaveUser("u" + i);
+            queueService.enterQueue(user.getUserId());
+        }
+
+        // then
+        assertEquals(10, queueRepository.countByStatus(Queue.QueueStatus.ACTIVE));
+        assertEquals(0, queueRepository.countByStatus(Queue.QueueStatus.WAITING));
+    }
+
+    @Test
+    @DisplayName("3. 100명 대기열 입장 -> 50명 Active, 50명 Waiting")
+    @Transactional
+    void enterQueue_Hundred() {
+        // given
+        for (int i = 0; i < 100; i++) {
+            User user = createAndSaveUser("u_hun_" + i);
+            queueService.enterQueue(user.getUserId());
+        }
+
+        // then
+        assertEquals(50, queueRepository.countByStatus(Queue.QueueStatus.ACTIVE));
+        assertEquals(50, queueRepository.countByStatus(Queue.QueueStatus.WAITING));
+    }
+
+    @Test
+    @DisplayName("4. 재진입 시 기존 대기열 삭제 및 맨 뒤로 이동")
+    @Transactional
+    void reEntry_Reset() {
+        // given
+        // 1. 50명 Active 채움
+        for (int i = 0; i < 50; i++) {
+            User user = createAndSaveUser("dummy" + i);
+            queueService.enterQueue(user.getUserId());
+        }
+
+        // 2. Target 유저 입장 -> Waiting 1번
+        User targetUser = createAndSaveUser("target");
+        QueueEnterResponse firstEntry = queueService.enterQueue(targetUser.getUserId());
+        assertEquals(Queue.QueueStatus.WAITING, firstEntry.getStatus());
+
+        // 3. 몇 명 더 입장 -> Waiting 증가
+        createAndSaveUser("dummy_w1");
+        queueService.enterQueue(createAndSaveUser("dummy_w1").getUserId());
+        createAndSaveUser("dummy_w2");
+        queueService.enterQueue(createAndSaveUser("dummy_w2").getUserId());
+
+        assertEquals(3, queueRepository.countByStatus(Queue.QueueStatus.WAITING));
 
         // when
-        QueueStatusResponse queueStatus1 = queueService.getQueueStatus(response1.getToken());
-        QueueStatusResponse queueStatus2 = queueService.getQueueStatus(response2.getToken());
-        QueueStatusResponse queueStatus3 = queueService.getQueueStatus(response3.getToken());
+        // 4. Target 유저 재진입
+        QueueEnterResponse secondEntry = queueService.enterQueue(targetUser.getUserId());
 
         // then
-        assertEquals(1, queueStatus1.getPosition());
-        assertEquals(2, queueStatus2.getPosition());
-        assertEquals(3, queueStatus3.getPosition());
+        // 기존 토큰과 달라야 함
+        assertNotEquals(firstEntry.getToken(), secondEntry.getToken());
+
+        // 상태는 여전히 Waiting이지만, 맨 뒤로 갔으므로 순번이나 enteredAt이 바뀌었음
+        // (Position은 동적 계산이므로 DB count로 확인)
+        // 총 Waiting 수는 여전히 3명이어야 함 (기존 것 삭제 후 추가이므로)
+        assertEquals(3, queueRepository.countByStatus(Queue.QueueStatus.WAITING));
+
+        // 맨 뒤인지 확인 (Token으로 조회하여 상태 및 EnteredAt 비교 등)
+        QueueStatusResponse status = queueService.getQueueStatus(secondEntry.getToken());
+
+        // 순번이 3등이어야 함 (앞에 dummy_w1, dummy_w2가 있으므로)
+        // 로직: dummy_w1(1), dummy_w2(2), target(3)
+        assertEquals(3, status.getPosition());
     }
 
     @Test
-    @DisplayName("존재하지 않는 토큰으로 조회 시 예외 발생")
-    void tokenNotFoundException(){
-        // given
-        String token = "123";
-
-        // then
-        assertThrows(QueueNotFoundException.class, () -> {
-            queueService.getQueueStatus(token);
-        });
-    }
-
-    @Test
-    @DisplayName("대기열 진입 후 상태 조회 - 통합 시나리오")
+    @DisplayName("5. 결제 진입(만료) 시 대기자 즉시 입장")
     @Transactional
-    void fullScenario(){
-        // 1. 첫 번째 사용자 진입
-        QueueEnterResponse enter1 = queueService.enterQueue(testUser1.getUserId());
-        assertEquals(1, enter1.getPosition());
+    void payment_Entry_Activation() {
+        // given
+        // 1. 50명 Active
+        List<User> activeUsers = new java.util.ArrayList<>();
+        for (int i = 0; i < 50; i++) {
+            User user = createAndSaveUser("active" + i);
+            queueService.enterQueue(user.getUserId());
+            activeUsers.add(user);
+        }
 
-        // 2. 두 번째 사용자 진입
-        QueueEnterResponse enter2 = queueService.enterQueue(testUser2.getUserId());
-        assertEquals(2, enter2.getPosition());
+        // 2. 1명 Waiting
+        User waiter = createAndSaveUser("waiter");
+        QueueEnterResponse waiterResponse = queueService.enterQueue(waiter.getUserId());
+        assertEquals(Queue.QueueStatus.WAITING, waiterResponse.getStatus());
+        assertEquals(1, queueService.getQueueStatus(waiterResponse.getToken()).getPosition());
 
-        // 3. 첫 번째 사용자 상태 조회
-        QueueStatusResponse status1 = queueService.getQueueStatus(enter1.getToken());
-        assertEquals(1, status1.getPosition());
-        assertEquals(Queue.QueueStatus.WAITING, status1.getStatus());
+        // when
+        // 3. Active 유저 중 한 명이 결제 진입 (expireQueue)
+        // Active 유저의 토큰을 알아야 함. Repository에서 조회
+        Queue activeQueue = queueRepository.findByUserAndStatusIn(activeUsers.get(0), List.of(Queue.QueueStatus.ACTIVE)).get();
+        queueService.expireQueue(activeQueue.getToken());
 
-        // 4. 두 번째 사용자 상태 조회
-        QueueStatusResponse status2 = queueService.getQueueStatus(enter2.getToken());
-        assertEquals(2, status2.getPosition());
-        assertEquals(Queue.QueueStatus.WAITING, status2.getStatus());
+        // then
+        // 4. 해당 Active 유저는 Expired
+        Queue expiredQueue = queueRepository.findById(activeQueue.getId()).get();
+        assertEquals(Queue.QueueStatus.EXPIRED, expiredQueue.getStatus());
+
+        // 5. Waiting 유저는 Active로 변경되었어야 함
+        QueueStatusResponse waiterStatus = queueService.getQueueStatus(waiterResponse.getToken());
+        assertEquals(Queue.QueueStatus.ACTIVE, waiterStatus.getStatus());
+        assertEquals(0, waiterStatus.getPosition());
+    }
+
+    @Test
+    @DisplayName("6. 퇴장 시 대기자 즉시 입장")
+    @Transactional
+    void exit_Entry_Activation() {
+        // given
+        // 1. 50명 Active
+        List<User> activeUsers = new java.util.ArrayList<>();
+        for (int i = 0; i < 50; i++) {
+            User user = createAndSaveUser("active_exit" + i);
+            queueService.enterQueue(user.getUserId());
+            activeUsers.add(user);
+        }
+
+        // 2. 1명 Waiting
+        User waiter = createAndSaveUser("waiter_exit");
+        QueueEnterResponse waiterResponse = queueService.enterQueue(waiter.getUserId());
+        assertEquals(Queue.QueueStatus.WAITING, waiterResponse.getStatus());
+
+        // when
+        // 3. Active 유저 중 한 명이 퇴장 (exitQueue)
+        Queue activeQueue = queueRepository.findByUserAndStatusIn(activeUsers.get(0), List.of(Queue.QueueStatus.ACTIVE))
+                .get();
+        queueService.exitQueue(activeQueue.getToken());
+
+        // then
+        // 4. 해당 Active 유저는 삭제됨
+        assertTrue(queueRepository.findById(activeQueue.getId()).isEmpty());
+
+        // 5. Waiting 유저는 Active로 변경되었어야 함
+        QueueStatusResponse waiterStatus = queueService.getQueueStatus(waiterResponse.getToken());
+        assertEquals(Queue.QueueStatus.ACTIVE, waiterStatus.getStatus());
+    }
+
+    private User createAndSaveUser(String suffix) {
+        String email = "ts_" + suffix + "@test.com";
+        String name = "test_" + suffix;
+        User user = User.builder()
+                .email(email)
+                .password("pw")
+                .name(name)
+                .build();
+        return userRepository.save(user);
     }
 }
