@@ -21,7 +21,4 @@ public class QueueStatusResponse {
     private String token;               // 대기열 토큰
     private int position;               // 현재 대기 순번
     private Queue.QueueStatus status;   // 대기열 상태 (WAITING, ACTIVE, EXPIRED)
-    private LocalDateTime enteredAt;    // 진입 시간
-    private LocalDateTime activatedAt;  // 활성화 시간 (ACTIVE일 때만)
-    private LocalDateTime expiresAt;    // 만료 시간 (ACTIVE일 때만)
 }

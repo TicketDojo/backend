@@ -1,6 +1,8 @@
 package com.ticket.dojo.backdeepfamily.domain.queue.repository;
 
 import com.ticket.dojo.backdeepfamily.domain.queue.entity.Queue;
+import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -23,11 +25,10 @@ public interface QueueRepository extends JpaRepository<Queue, Long> {
     // SELECT count(*) FROM queue WHERE status = ? AND entered_at < ?
     int countByStatusAndEnteredAtBefore(Queue.QueueStatus queueStatus, LocalDateTime enteredAt);
 
-    // WAITING 상태를 enteredAt 순으로 조회 (최대 10개)
-    // SELECT * FROM queue WHERE status = ? ORDER BY entered_at ASC LIMIT 10
-    List<Queue> findTop10ByStatusOrderByEnteredAtAsc(Queue.QueueStatus status);
+    // WAITING 상태를 enteredAt 순으로 조회 (Pageable로 개수 제어)
+    // SELECT * FROM queue WHERE status = ? ORDER BY entered_at ASC LIMIT ?
+    List<Queue> findByStatusOrderByEnteredAtAsc(Queue.QueueStatus status, Pageable pageable);
 
-    // expiresAt이 현재 시간보다 이전인 ACTIVE Queue 조회
-    // SELECT * FROM queue WHERE status = ? AND expired_at < ?
-    List<Queue> findByStatusAndExpiresAtBefore(Queue.QueueStatus status, LocalDateTime now);
+    // 특정 사용자의 먼저 들어온 대기열 상태가 있는지 반환
+    Optional<Queue> findByUserAndStatusIn(User user, List<Queue.QueueStatus> active);
 }

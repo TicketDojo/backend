@@ -22,30 +22,30 @@ public class QueueController {
 
     // jwt 도입 전 endPoint
     @PostMapping("/plain/enter")
-    public ResponseEntity<QueueEnterResponse> plainQueueEnter(@RequestParam Long userId){
+    public ResponseEntity<QueueEnterResponse> plainQueueEnter(@RequestParam Long userId) {
         log.info("대기열 진입 API 호출 - user : {}", userId);
         QueueEnterResponse response = queueService.enterQueue(userId);
         return ResponseEntity.ok(response);
     }
 
     // jwt 도입 후 endPoint
-//    @PostMapping("/jwt/enter")
-//    public ResponseEntity<QueueEnterResponse> jwtQueueEnter(@AuthenticationPrincipal CustomUserDetails userDetail){
-//        Long userId = userDetail.getUserId();
-//        log.info("대기열 진입 API 호출 - USER {}", userId);
-//        QueueEnterResponse response = queueService.enterQueue(userId);
-//        return ResponseEntity.ok(response);
-//    }
+    // @PostMapping("/jwt/enter")
+    // public ResponseEntity<QueueEnterResponse> jwtQueueEnter(@AuthenticationPrincipal CustomUserDetails userDetail){
+        // Long userId = userDetail.getUserId();
+        // log.info("대기열 진입 API 호출 - USER {}", userId);
+        // QueueEnterResponse response = queueService.enterQueue(userId);
+        // return ResponseEntity.ok(response);
+    // }
 
     @GetMapping("/status")
-    public ResponseEntity<QueueStatusResponse> getQueueStatus(@RequestParam String token){
+    public ResponseEntity<QueueStatusResponse> getQueueStatus(@RequestParam String token) {
         log.info("대기열 상태 조회 API 호출 - token : {}", token);
         QueueStatusResponse response = queueService.getQueueStatus(token);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/exit")
-    public ResponseEntity<Void> exitQueue(@RequestParam String token){
+    public ResponseEntity<Void> exitQueue(@RequestParam String token) {
         log.info("대기열 퇴장 API 호출 - token : {}", token);
 
         queueService.exitQueue(token);
