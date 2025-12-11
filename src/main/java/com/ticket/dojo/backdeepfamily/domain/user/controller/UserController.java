@@ -19,7 +19,7 @@ public class UserController {
     
     private final UserService userService;
     
-    @PostMapping("/join")
+    @PostMapping("")
     public String join(UserLoginRequest request) {
         userService.join(request);
 

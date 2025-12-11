@@ -3,7 +3,6 @@ package com.ticket.dojo.backdeepfamily.domain.auth.repository;
 import com.ticket.dojo.backdeepfamily.domain.auth.entity.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -20,10 +19,8 @@ public interface RefreshRepository extends JpaRepository<RefreshToken, Long> {
     Boolean existsByRefreshToken(String refreshToken);
 
     // refresh 토큰 삭제
-    @Transactional
     void deleteByRefreshToken(String refreshToken);
 
     // 이메일로 refresh 토큰 삭제 (로그아웃)
-    @Transactional
     void deleteByEmail(String email);
 }
