@@ -1,5 +1,6 @@
 package com.ticket.dojo.backdeepfamily.domain.ticketing.service;
 
+import com.ticket.dojo.backdeepfamily.domain.queue.service.QueueService;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.dto.response.GetHoldingSeatsResponse;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.dto.response.GetRankingResponse;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.entity.Reservation;
@@ -33,231 +34,237 @@ import static org.mockito.Mockito.*;
 @DisplayName("ReservationService 단위 테스트")
 class ReservationServiceImplTest {
 
-    @Mock
-    private UserRepository userRepository;
+        @Mock
+        private UserRepository userRepository;
 
-    @Mock
-    private ReservationRepository reservationRepository;
+        @Mock
+        private ReservationRepository reservationRepository;
 
-    @Mock
-    private ReservationSeatRepository reservationSeatRepository;
+        @Mock
+        private ReservationSeatRepository reservationSeatRepository;
 
-    @InjectMocks
-    private ReservationServiceImpl reservationService;
+        @Mock
+        private QueueService queueService;
 
-    private User testUser;
-    private Reservation testReservation;
-    private Seat testSeat;
-    private ReservationSeat testReservationSeat;
-    private Long testUserId;
-    private Long testReservationId;
-    private Long testSequenceNum;
+        @InjectMocks
+        private ReservationServiceImpl reservationService;
 
-    @BeforeEach
-    void setUp() {
-        testUserId = 1L;
-        testReservationId = 1L;
-        testSequenceNum = 1L;
+        private User testUser;
+        private Reservation testReservation;
+        private Seat testSeat;
+        private ReservationSeat testReservationSeat;
+        private Long testUserId;
+        private Long testReservationId;
+        private Long testSequenceNum;
+        private String testQueueToken;
 
-        testUser = User.builder()
-                .userId(testUserId)
-                .name("테스트유저")
-                .email("test@example.com")
-                .build();
+        @BeforeEach
+        void setUp() {
+                testUserId = 1L;
+                testReservationId = 1L;
+                testSequenceNum = 1L;
+                testQueueToken = "test-queue-token-123";
 
-        testReservation = Reservation.builder()
-                .id(testReservationId)
-                .user(testUser)
-                .sequenceNum(testSequenceNum)
-                .reservationState(PENDING)
-                .build();
+                testUser = User.builder()
+                                .userId(testUserId)
+                                .name("테스트유저")
+                                .email("test@example.com")
+                                .build();
 
-        testSeat = Seat.builder()
-                .id(1L)
-                .seatNumber("A1")
-                .build();
+                testReservation = Reservation.builder()
+                                .id(testReservationId)
+                                .user(testUser)
+                                .sequenceNum(testSequenceNum)
+                                .reservationState(PENDING)
+                                .build();
 
-        testReservationSeat = ReservationSeat.builder()
-                .id(1L)
-                .seat(testSeat)
-                .reservation(testReservation)
-                .expiredAt(LocalDateTime.now().plusSeconds(20))
-                .build();
-    }
+                testSeat = Seat.builder()
+                                .id(1L)
+                                .seatNumber("A1")
+                                .build();
 
-    @Test
-    @DisplayName("결제 진입 성공 - PAYING 상태로 변경 및 좌석 만료시간 갱신")
-    void enterPaying_Success() {
-        // given
-        given(reservationRepository.findById(testReservationId))
-                .willReturn(Optional.of(testReservation));
-        given(reservationSeatRepository.findAllByReservation(testReservation))
-                .willReturn(List.of(testReservationSeat));
+                testReservationSeat = ReservationSeat.builder()
+                                .id(1L)
+                                .seat(testSeat)
+                                .reservation(testReservation)
+                                .expiredAt(LocalDateTime.now().plusSeconds(20))
+                                .build();
+        }
 
-        // when
-        reservationService.enterPaying(testReservationId);
+        @Test
+        @DisplayName("결제 진입 성공 - PAYING 상태로 변경 및 좌석 만료시간 갱신")
+        void enterPaying_Success() {
+                // given
+                given(reservationRepository.findById(testReservationId))
+                                .willReturn(Optional.of(testReservation));
+                given(reservationSeatRepository.findAllByReservation(testReservation))
+                                .willReturn(List.of(testReservationSeat));
 
-        // then
-        assertThat(testReservation.getReservationState()).isEqualTo(PAYING);
-        verify(reservationRepository, times(1)).findById(testReservationId);
-        verify(reservationSeatRepository, times(1)).findAllByReservation(testReservation);
-    }
+                // when
+                reservationService.enterPaying(testReservationId);
 
-    @Test
-    @DisplayName("결제 진입 실패 - 예약을 찾을 수 없음")
-    void enterPaying_ReservationNotFound() {
-        // given
-        given(reservationRepository.findById(testReservationId))
-                .willReturn(Optional.empty());
+                // then
+                assertThat(testReservation.getReservationState()).isEqualTo(PAYING);
+                verify(reservationRepository, times(1)).findById(testReservationId);
+                verify(reservationSeatRepository, times(1)).findAllByReservation(testReservation);
+        }
 
-        // when & then
-        assertThatThrownBy(() -> reservationService.enterPaying(testReservationId))
-                .isInstanceOf(ReservationException.class)
-                .hasMessageContaining("예약을 찾을 수 없습니다");
+        @Test
+        @DisplayName("결제 진입 실패 - 예약을 찾을 수 없음")
+        void enterPaying_ReservationNotFound() {
+                // given
+                given(reservationRepository.findById(testReservationId))
+                                .willReturn(Optional.empty());
 
-        verify(reservationRepository, times(1)).findById(testReservationId);
-        verify(reservationSeatRepository, never()).findAllByReservation(any());
-    }
+                // when & then
+                assertThatThrownBy(() -> reservationService.enterPaying(testReservationId))
+                                .isInstanceOf(ReservationException.class)
+                                .hasMessageContaining("예약을 찾을 수 없습니다");
 
-    @Test
-    @DisplayName("티켓팅 진입 성공 - Reservation 생성 및 점유 좌석 조회")
-    void enterTicketing_Success() {
-        // given
-        given(userRepository.findById(testUserId))
-                .willReturn(Optional.of(testUser));
+                verify(reservationRepository, times(1)).findById(testReservationId);
+                verify(reservationSeatRepository, never()).findAllByReservation(any());
+        }
 
-        given(reservationSeatRepository.findAll())
-                .willReturn(List.of(testReservationSeat));
+        @Test
+        @DisplayName("티켓팅 진입 성공 - Reservation 생성 및 점유 좌석 조회")
+        void enterTicketing_Success() {
+                // given
+                given(userRepository.findById(testUserId))
+                                .willReturn(Optional.of(testUser));
 
-        given(reservationRepository.save(any(Reservation.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
+                given(reservationSeatRepository.findAll())
+                                .willReturn(List.of(testReservationSeat));
 
-        // when
-        GetHoldingSeatsResponse response = reservationService.enterTicketing(testUserId);
+                given(reservationRepository.save(any(Reservation.class)))
+                                .willAnswer(invocation -> invocation.getArgument(0));
 
-        // then
-        assertThat(response).isNotNull();
-        // reservationId는 JPA save 후에 설정되므로 null일 수 있음 (mock 환경)
-        assertThat(response.getSequenceNum()).isNotNull();
-        assertThat(response.getSeats()).isNotNull();
-        assertThat(response.getSeats()).hasSize(1);
-        assertThat(response.getSeats().get(0).getSeatId()).isEqualTo(testSeat.getId());
-        assertThat(response.getSeats().get(0).getSeatNumber()).isEqualTo(testSeat.getSeatNumber());
+                // when
+                GetHoldingSeatsResponse response = reservationService.enterTicketing(testUserId);
 
-        verify(userRepository, times(1)).findById(testUserId);
-        verify(reservationRepository, times(1)).save(any(Reservation.class));
-        verify(reservationSeatRepository, times(1)).findAll();
-    }
+                // then
+                assertThat(response).isNotNull();
+                // reservationId는 JPA save 후에 설정되므로 null일 수 있음 (mock 환경)
+                assertThat(response.getSequenceNum()).isNotNull();
+                assertThat(response.getSeats()).isNotNull();
+                assertThat(response.getSeats()).hasSize(1);
+                assertThat(response.getSeats().get(0).getSeatId()).isEqualTo(testSeat.getId());
+                assertThat(response.getSeats().get(0).getSeatNumber()).isEqualTo(testSeat.getSeatNumber());
 
-    @Test
-    @DisplayName("결제 완료 성공 - CONFIRMED 상태로 변경")
-    void completePaying_Success() {
-        // given
-        given(reservationRepository.findById(testReservationId))
-                .willReturn(Optional.of(testReservation));
+                verify(userRepository, times(1)).findById(testUserId);
+                verify(reservationRepository, times(1)).save(any(Reservation.class));
+                verify(reservationSeatRepository, times(1)).findAll();
+        }
 
-        // when
-        reservationService.completePaying(testUserId, testReservationId);
+        @Test
+        @DisplayName("결제 완료 성공 - CONFIRMED 상태로 변경 및 대기열 만료")
+        void completePaying_Success() {
+                // given
+                given(reservationRepository.findById(testReservationId))
+                                .willReturn(Optional.of(testReservation));
 
-        // then
-        assertThat(testReservation.getReservationState()).isEqualTo(CONFIRMED);
-        verify(reservationRepository, times(1)).findById(testReservationId);
-    }
+                // when
+                reservationService.completePaying(testUserId, testReservationId, testQueueToken);
 
-    @Test
-    @DisplayName("랭킹 조회 성공")
-    void getRanking_Success() {
-        // given
-        Reservation confirmedReservation1 = Reservation.builder()
-                .id(1L)
-                .user(testUser)
-                .sequenceNum(testSequenceNum)
-                .reservationState(CONFIRMED)
-                .build();
+                // then
+                assertThat(testReservation.getReservationState()).isEqualTo(CONFIRMED);
+                verify(reservationRepository, times(1)).findById(testReservationId);
+                verify(queueService, times(1)).expireQueue(testQueueToken);
+        }
 
-        User user2 = User.builder()
-                .userId(2L)
-                .name("유저2")
-                .email("user2@example.com")
-                .build();
+        @Test
+        @DisplayName("랭킹 조회 성공")
+        void getRanking_Success() {
+                // given
+                Reservation confirmedReservation1 = Reservation.builder()
+                                .id(1L)
+                                .user(testUser)
+                                .sequenceNum(testSequenceNum)
+                                .reservationState(CONFIRMED)
+                                .build();
 
-        Reservation confirmedReservation2 = Reservation.builder()
-                .id(2L)
-                .user(user2)
-                .sequenceNum(testSequenceNum)
-                .reservationState(CONFIRMED)
-                .build();
+                User user2 = User.builder()
+                                .userId(2L)
+                                .name("유저2")
+                                .email("user2@example.com")
+                                .build();
 
-        given(reservationRepository.findById(testReservationId))
-                .willReturn(Optional.of(testReservation));
-        given(reservationRepository.findAllBySequenceNumAndReservationStateOrderByUpdatedAtAsc(
-                testSequenceNum, CONFIRMED))
-                .willReturn(List.of(confirmedReservation1, confirmedReservation2));
+                Reservation confirmedReservation2 = Reservation.builder()
+                                .id(2L)
+                                .user(user2)
+                                .sequenceNum(testSequenceNum)
+                                .reservationState(CONFIRMED)
+                                .build();
 
-        // when
-        GetRankingResponse response = reservationService.getRanking(testReservationId);
+                given(reservationRepository.findById(testReservationId))
+                                .willReturn(Optional.of(testReservation));
+                given(reservationRepository.findAllBySequenceNumAndReservationStateOrderByUpdatedAtAsc(
+                                testSequenceNum, CONFIRMED))
+                                .willReturn(List.of(confirmedReservation1, confirmedReservation2));
 
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.getRanks()).hasSize(2);
-        assertThat(response.getRanks().get(0).getName()).isEqualTo("테스트유저");
-        assertThat(response.getRanks().get(1).getName()).isEqualTo("유저2");
+                // when
+                GetRankingResponse response = reservationService.getRanking(testReservationId);
 
-        verify(reservationRepository, times(1)).findById(testReservationId);
-        verify(reservationRepository, times(1))
-                .findAllBySequenceNumAndReservationStateOrderByUpdatedAtAsc(testSequenceNum, CONFIRMED);
-    }
+                // then
+                assertThat(response).isNotNull();
+                assertThat(response.getRanks()).hasSize(2);
+                assertThat(response.getRanks().get(0).getName()).isEqualTo("테스트유저");
+                assertThat(response.getRanks().get(1).getName()).isEqualTo("유저2");
 
-    @Test
-    @DisplayName("예약 취소 성공")
-    void cancelReservation_Success() {
-        // given
-        given(reservationRepository.findById(testReservationId))
-                .willReturn(Optional.of(testReservation));
-        given(reservationSeatRepository.findAllByReservation(testReservation))
-                .willReturn(List.of(testReservationSeat));
+                verify(reservationRepository, times(1)).findById(testReservationId);
+                verify(reservationRepository, times(1))
+                                .findAllBySequenceNumAndReservationStateOrderByUpdatedAtAsc(testSequenceNum, CONFIRMED);
+        }
 
-        // when
-        reservationService.cancelReservation(testReservationId, testUserId);
+        @Test
+        @DisplayName("예약 취소 성공")
+        void cancelReservation_Success() {
+                // given
+                given(reservationRepository.findById(testReservationId))
+                                .willReturn(Optional.of(testReservation));
+                given(reservationSeatRepository.findAllByReservation(testReservation))
+                                .willReturn(List.of(testReservationSeat));
 
-        // then
-        assertThat(testReservation.getReservationState()).isEqualTo(Reservation.ReservationState.CANCELLED);
-        verify(reservationRepository, times(1)).findById(testReservationId);
-        verify(reservationSeatRepository, times(1)).findAllByReservation(testReservation);
-        verify(reservationSeatRepository, times(1)).deleteAll(anyList());
-    }
+                // when
+                reservationService.cancelReservation(testReservationId, testUserId);
 
-    @Test
-    @DisplayName("예약 취소 실패 - 권한 없음")
-    void cancelReservation_Unauthorized() {
-        // given
-        Long otherUserId = 999L;
-        given(reservationRepository.findById(testReservationId))
-                .willReturn(Optional.of(testReservation));
+                // then
+                assertThat(testReservation.getReservationState()).isEqualTo(Reservation.ReservationState.CANCELLED);
+                verify(reservationRepository, times(1)).findById(testReservationId);
+                verify(reservationSeatRepository, times(1)).findAllByReservation(testReservation);
+                verify(reservationSeatRepository, times(1)).deleteAll(anyList());
+        }
 
-        // when & then
-        assertThatThrownBy(() -> reservationService.cancelReservation(testReservationId, otherUserId))
-                .isInstanceOf(ReservationException.class)
-                .hasMessageContaining("예약 취소 권한이 없습니다");
+        @Test
+        @DisplayName("예약 취소 실패 - 권한 없음")
+        void cancelReservation_Unauthorized() {
+                // given
+                Long otherUserId = 999L;
+                given(reservationRepository.findById(testReservationId))
+                                .willReturn(Optional.of(testReservation));
 
-        verify(reservationRepository, times(1)).findById(testReservationId);
-        verify(reservationSeatRepository, never()).deleteAll(anyList());
-    }
+                // when & then
+                assertThatThrownBy(() -> reservationService.cancelReservation(testReservationId, otherUserId))
+                                .isInstanceOf(ReservationException.class)
+                                .hasMessageContaining("예약 취소 권한이 없습니다");
 
-    @Test
-    @DisplayName("예약 취소 실패 - 확정된 예약은 취소 불가")
-    void cancelReservation_ConfirmedReservation() {
-        // given
-        testReservation.changeState(CONFIRMED);
-        given(reservationRepository.findById(testReservationId))
-                .willReturn(Optional.of(testReservation));
+                verify(reservationRepository, times(1)).findById(testReservationId);
+                verify(reservationSeatRepository, never()).deleteAll(anyList());
+        }
 
-        // when & then
-        assertThatThrownBy(() -> reservationService.cancelReservation(testReservationId, testUserId))
-                .isInstanceOf(ReservationException.class)
-                .hasMessageContaining("확정된 예약은 취소할 수 없습니다");
+        @Test
+        @DisplayName("예약 취소 실패 - 확정된 예약은 취소 불가")
+        void cancelReservation_ConfirmedReservation() {
+                // given
+                testReservation.changeState(CONFIRMED);
+                given(reservationRepository.findById(testReservationId))
+                                .willReturn(Optional.of(testReservation));
 
-        verify(reservationRepository, times(1)).findById(testReservationId);
-        verify(reservationSeatRepository, never()).deleteAll(anyList());
-    }
+                // when & then
+                assertThatThrownBy(() -> reservationService.cancelReservation(testReservationId, testUserId))
+                                .isInstanceOf(ReservationException.class)
+                                .hasMessageContaining("확정된 예약은 취소할 수 없습니다");
+
+                verify(reservationRepository, times(1)).findById(testReservationId);
+                verify(reservationSeatRepository, never()).deleteAll(anyList());
+        }
 }
