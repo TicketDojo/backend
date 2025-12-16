@@ -37,7 +37,7 @@ public class Queue {
     @Column(nullable = false)
     private LocalDateTime enteredAt; // 입장 시간
 
-    private LocalDateTime expiresAt; // 만료 시간
+    // private LocalDateTime expiresAt; // 만료 시간
 
     private LocalDateTime activatedAt; // ACTIVE 상태로 변경된 시간
 
@@ -52,6 +52,7 @@ public class Queue {
         if (this.updatedAt == null) {
             this.updatedAt = LocalDateTime.now();
         }
+
         if (this.status == null) {
             this.status = QueueStatus.WAITING;
         }
@@ -66,5 +67,26 @@ public class Queue {
         WAITING, // 대기 중
         ACTIVE, // 활성화 (입장 가능)
         EXPIRED // 만료됨
+    }
+
+    public static Queue createWaitQueue(User user, String token, int position) {
+        return Queue.builder()
+                .user(user)
+                .token(token)
+                .status(QueueStatus.WAITING)
+                .position(position)
+                .enteredAt(LocalDateTime.now())
+                .build();
+    }
+
+    public void activate(LocalDateTime now) {
+        this.status = QueueStatus.ACTIVE;
+        this.activatedAt = now;
+        // this.expiresAt = now.plusMinutes(10); // 삭제됨
+        this.updatedAt = now;
+    }
+
+    public void expire() {
+        this.status = QueueStatus.EXPIRED;
     }
 }
