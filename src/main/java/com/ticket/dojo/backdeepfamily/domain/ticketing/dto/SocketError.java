@@ -13,10 +13,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SocketError {
-    //ERROR
-    private String type;
-    private String message;
     private String errorCode;
-    private Long seatId;
-    private Long reservationId;
+    private String message;
 }
