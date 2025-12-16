@@ -12,7 +12,7 @@ import java.util.Map;
 
 /**
  * 전역 예외 핸들러
- *
+ * <p>
  * Controller에서 try-catch를 제거하고
  * 비즈니스 로직에서 던진 예외를 중앙에서 처리
  */
@@ -95,10 +95,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(QueueNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleQueueNotFound(QueueNotFoundException e){
+    public ResponseEntity<ErrorResponse> handleQueueNotFound(QueueNotFoundException e) {
         log.error("QueueNotFoundException: {}", e.getMessage());
         ErrorResponse errorResponse = new ErrorResponse(HttpStatus.NOT_FOUND.value(), e.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
 
     /**
      * 일반 RuntimeException 처리
@@ -116,6 +117,5 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(errorResponse);
-
     }
 }
