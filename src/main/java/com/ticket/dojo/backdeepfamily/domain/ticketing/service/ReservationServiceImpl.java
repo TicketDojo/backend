@@ -1,5 +1,6 @@
 package com.ticket.dojo.backdeepfamily.domain.ticketing.service;
 
+import com.ticket.dojo.backdeepfamily.domain.queue.service.QueueService;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.dto.response.GetHoldingSeatsResponse;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.dto.response.GetRankingResponse;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.entity.Reservation;
@@ -25,6 +26,7 @@ public class ReservationServiceImpl implements ReservationService {
         private final UserRepository userRepository;
         private final ReservationRepository reservationRepository;
         private final ReservationSeatRepository reservationSeatRepository;
+        private final QueueService queueService;
         private static final int HOLD_SECONDS = 20;
 
         // 회차구할때 기준점
@@ -48,7 +50,10 @@ public class ReservationServiceImpl implements ReservationService {
                 reservation.changeState(PAYING);
 
                 reservationSeatRepository.findAllByReservation(reservation)
-                                .forEach(seat -> seat.refreshExpiredAt(LocalDateTime.now().plusSeconds(HOLD_SECONDS))); // 현재시간 + 20초로 초기화
+                                .forEach(seat -> seat.refreshExpiredAt(LocalDateTime.now().plusSeconds(HOLD_SECONDS))); // 현재시간
+                                                                                                                        // +
+                                                                                                                        // 20초로
+                                                                                                                        // 초기화
         }
 
         /**
@@ -84,10 +89,10 @@ public class ReservationServiceImpl implements ReservationService {
 
         @Transactional
         @Override
-        public void completePaying(Long userId, Long reservationId) {
+        public void completePaying(Long userId, Long reservationId, String queueToken) {
                 // 결제 처리 시뮬레이션 - 3초 딜레이
                 try {
-                    Thread.sleep(3000);
+                        Thread.sleep(3000);
                 } catch (InterruptedException e) {
                         throw new ReservationException("결제 처리 중 오류가 발생했습니다.");
                 }
@@ -99,6 +104,9 @@ public class ReservationServiceImpl implements ReservationService {
                         throw new ReservationException("비정상적인 접근입니다.");
                 }
                 reservation.changeState(CONFIRMED);
+
+                // 대기열 만료 처리 (다음 대기자 입장 가능)
+                queueService.expireQueue(queueToken);
         }
 
         @Transactional

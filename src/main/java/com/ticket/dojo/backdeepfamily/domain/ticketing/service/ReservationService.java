@@ -8,7 +8,7 @@ public interface ReservationService {
 
     GetHoldingSeatsResponse enterTicketing(Long userId);
 
-    void completePaying(Long reservationId, Long userId);
+    void completePaying(Long userId, Long reservationId, String queueToken);
 
     GetRankingResponse getRanking(Long reservationId);
 

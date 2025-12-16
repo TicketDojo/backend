@@ -35,9 +35,11 @@ public class ReservationController {
 
     // 결제완료
     @PostMapping("/{reservationId}/payment")
-    public ResponseEntity<Void> completePaying(@PathVariable Long reservationId,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        reservationService.completePaying(reservationId, userDetails.getUserId());
+    public ResponseEntity<Void> completePaying(
+            @PathVariable Long reservationId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam String queueToken) {
+        reservationService.completePaying(userDetails.getUserId(), reservationId, queueToken);
         return ResponseEntity.ok().build();
     }
 
