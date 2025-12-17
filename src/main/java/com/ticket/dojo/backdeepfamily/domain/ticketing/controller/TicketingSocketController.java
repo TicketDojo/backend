@@ -10,6 +10,7 @@ import com.ticket.dojo.backdeepfamily.global.exception.socket.ReservationNotFoun
 import com.ticket.dojo.backdeepfamily.global.exception.socket.SeatAlreadyHeldException;
 import com.ticket.dojo.backdeepfamily.global.exception.socket.SeatNotFoundException;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.service.TicketingSocketService;
+import com.ticket.dojo.backdeepfamily.global.exception.socket.SocketExceptionMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Controller;
 public class TicketingSocketController {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final TicketingSocketService ticketingSocketService;
+    private final SocketExceptionMapper socketExceptionMapper;
 
     /**
      * 좌석 점유
@@ -68,27 +70,11 @@ public class TicketingSocketController {
     public SocketError handleException(Exception ex) {
         log.error("WebSocket 예외 발생: {}", ex.getMessage());
 
-        String errorCode = getErrorCode(ex);
+        String errorCode = socketExceptionMapper.toErrorCode(ex);
 
         return SocketError.builder()
                 .errorCode(errorCode)
                 .message(ex.getMessage())
                 .build();
-    }
-
-    /**
-     * 예외 타입에 따른 에러 코드 반환
-     */
-    private String getErrorCode(Exception ex) {
-        if (ex instanceof SeatAlreadyHeldException) {
-            return "SEAT_ALREADY_HELD";
-        }
-        if (ex instanceof SeatNotFoundException) {
-            return "SEAT_NOT_FOUND";
-        }
-        if (ex instanceof ReservationNotFoundException) {
-            return "RESERVATION_NOT_FOUND";
-        }
-        return "INTERNAL_ERROR";
     }
 }
