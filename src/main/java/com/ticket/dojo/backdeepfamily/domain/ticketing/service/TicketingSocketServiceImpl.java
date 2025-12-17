@@ -25,7 +25,7 @@ public class TicketingSocketServiceImpl implements TicketingSocketService {
 
         @Override
         @Transactional
-        public void holdSeat(Long seatId, Long reservationId) {
+        public long holdSeat(Long seatId, Long reservationId) {
                 Reservation reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
 
@@ -43,11 +43,13 @@ public class TicketingSocketServiceImpl implements TicketingSocketService {
                                 .build();
 
                 reservationSeatRepository.save(reservationSeat);
+
+            return reservation.getSequenceNum();
         }
 
         @Override
         @Transactional
-        public void releaseSeat(Long reservationId, Long seatId) {
+        public long releaseSeat(Long reservationId, Long seatId) {
                 Reservation reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
 
@@ -59,5 +61,7 @@ public class TicketingSocketServiceImpl implements TicketingSocketService {
                                 .filter(rs -> rs.getSeat().equals(seat))
                                 .findFirst()
                                 .ifPresent(reservationSeatRepository::delete);
+
+            return reservation.getSequenceNum();
         }
 }

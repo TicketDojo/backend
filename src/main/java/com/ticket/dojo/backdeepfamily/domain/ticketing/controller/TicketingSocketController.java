@@ -22,84 +22,73 @@ import org.springframework.stereotype.Controller;
 @Controller
 @RequiredArgsConstructor
 public class TicketingSocketController {
-        private final SimpMessagingTemplate simpMessagingTemplate;
-        private final TicketingSocketService ticketingSocketService;
-        private final ReservationRepository reservationRepository;
+    private final SimpMessagingTemplate simpMessagingTemplate;
+    private final TicketingSocketService ticketingSocketService;
 
-        /**
-         * 좌석 점유
-         * /pub/seat/hold
-         */
-        @MessageMapping("/seat/hold")
-        public void holdSeat(SeatHoldRequest request) {
-                // sequenceNum 파라미터 제거
-                ticketingSocketService.holdSeat(request.getSeatId(), request.getReservationId());
+    /**
+     * 좌석 점유
+     * /pub/seat/hold
+     */
+    @MessageMapping("/seat/hold")
+    public void holdSeat(SeatHoldRequest request) {
+        long sequenceNum = ticketingSocketService.holdSeat(request.getSeatId(), request.getReservationId());
 
-                // Reservation에서 sequenceNum 조회
-                Reservation reservation = reservationRepository.findById(request.getReservationId())
-                                .orElseThrow(() -> new ReservationNotFoundException(request.getReservationId()));
+        simpMessagingTemplate.convertAndSend("/sub/round/" + sequenceNum + "/seats",
+                SeatStatusEventResponse.builder()
+                        .type("HOLD")
+                        .seatId(request.getSeatId())
+                        .reservationId(request.getReservationId())
+                        .build());
+    }
 
-                simpMessagingTemplate.convertAndSend("/sub/round/" + reservation.getSequenceNum() + "/seats",
-                                SeatStatusEventResponse.builder()
-                                                .type("HOLD")
-                                                .seatId(request.getSeatId())
-                                                .reservationId(request.getReservationId())
-                                                .build());
+    /**
+     * 좌석 해제
+     * /pub/seat/release
+     */
+    @MessageMapping("/seat/release")
+    public void releaseSeat(SeatReleaseRequest request) {
+        long sequenceNum = ticketingSocketService.releaseSeat(request.getReservationId(), request.getSeatId());
+
+        simpMessagingTemplate.convertAndSend(
+                "/sub/round/" + sequenceNum + "/seats",
+                SeatStatusEventResponse.builder()
+                        .type("RELEASE")
+                        .seatId(request.getSeatId())
+                        .reservationId(request.getReservationId())
+                        .build());
+    }
+
+    /**
+     * 웹소켓 예외 처리
+     *
+     * @SendToUser: 해당 사용자에게만 에러 메시지 전송 (/user/queue/errors)
+     */
+    @MessageExceptionHandler
+    @SendToUser("/queue/errors")
+    public SocketError handleException(Exception ex) {
+        log.error("WebSocket 예외 발생: {}", ex.getMessage());
+
+        String errorCode = getErrorCode(ex);
+
+        return SocketError.builder()
+                .errorCode(errorCode)
+                .message(ex.getMessage())
+                .build();
+    }
+
+    /**
+     * 예외 타입에 따른 에러 코드 반환
+     */
+    private String getErrorCode(Exception ex) {
+        if (ex instanceof SeatAlreadyHeldException) {
+            return "SEAT_ALREADY_HELD";
         }
-
-        /**
-         * 좌석 해제
-         * /pub/seat/release
-         */
-        @MessageMapping("/seat/release")
-        public void releaseSeat(SeatReleaseRequest request) {
-                // sequenceNum 파라미터 제거
-                ticketingSocketService.releaseSeat(request.getReservationId(), request.getSeatId());
-
-                // Reservation에서 sequenceNum 조회
-                Reservation reservation = reservationRepository.findById(request.getReservationId())
-                                .orElseThrow(() -> new ReservationNotFoundException(request.getReservationId()));
-
-                simpMessagingTemplate.convertAndSend(
-                                "/sub/round/" + reservation.getSequenceNum() + "/seats",
-                                SeatStatusEventResponse.builder()
-                                                .type("RELEASE")
-                                                .seatId(request.getSeatId())
-                                                .reservationId(request.getReservationId())
-                                                .build());
+        if (ex instanceof SeatNotFoundException) {
+            return "SEAT_NOT_FOUND";
         }
-
-        /**
-         * 웹소켓 예외 처리
-         * 
-         * @SendToUser: 해당 사용자에게만 에러 메시지 전송 (/user/queue/errors)
-         */
-        @MessageExceptionHandler
-        @SendToUser("/queue/errors")
-        public SocketError handleException(Exception ex) {
-                log.error("WebSocket 예외 발생: {}", ex.getMessage());
-
-                String errorCode = getErrorCode(ex);
-
-                return SocketError.builder()
-                                .errorCode(errorCode)
-                                .message(ex.getMessage())
-                                .build();
+        if (ex instanceof ReservationNotFoundException) {
+            return "RESERVATION_NOT_FOUND";
         }
-
-        /**
-         * 예외 타입에 따른 에러 코드 반환
-         */
-        private String getErrorCode(Exception ex) {
-                if (ex instanceof SeatAlreadyHeldException) {
-                        return "SEAT_ALREADY_HELD";
-                }
-                if (ex instanceof SeatNotFoundException) {
-                        return "SEAT_NOT_FOUND";
-                }
-                if (ex instanceof ReservationNotFoundException) {
-                        return "RESERVATION_NOT_FOUND";
-                }
-                return "INTERNAL_ERROR";
-        }
+        return "INTERNAL_ERROR";
+    }
 }
