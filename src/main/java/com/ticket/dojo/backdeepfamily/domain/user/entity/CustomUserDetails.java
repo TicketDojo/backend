@@ -9,12 +9,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public class CustomUserDetails implements UserDetails{
+public class CustomUserDetails implements UserDetails {
     private final User user;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        
+
         Collection<GrantedAuthority> collection = new ArrayList<>();
 
         collection.add(new GrantedAuthority() {
@@ -25,6 +25,10 @@ public class CustomUserDetails implements UserDetails{
         });
 
         return collection;
+    }
+
+    public Long getUserId() {
+        return user.getUserId();
     }
 
     @Override
