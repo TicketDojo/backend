@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+import static com.ticket.dojo.backdeepfamily.domain.ticketing.entity.Reservation.ReservationState.PENDING;
+
 @Entity
 @Table(name = "reservation")
 @Getter
@@ -59,4 +61,13 @@ public class Reservation {
     public enum ReservationState {
         PENDING, CONFIRMED, CANCELLED, TIMEOUT, PAYING
     }
+
+    public static Reservation createReservation(User user, long sequenceNum) {
+        return Reservation.builder()
+                .reservationState(PENDING)
+                .user(user)
+                .sequenceNum(sequenceNum)
+                .build();
+    }
+
 }

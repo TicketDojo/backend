@@ -13,8 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
 @Service
 @RequiredArgsConstructor
 public class TicketingSocketServiceImpl implements TicketingSocketService {
@@ -36,11 +34,7 @@ public class TicketingSocketServiceImpl implements TicketingSocketService {
                         throw new SeatAlreadyHeldException(seatId);
                 }
 
-                ReservationSeat reservationSeat = ReservationSeat.builder()
-                                .seat(seat)
-                                .reservation(reservation)
-                                .expiredAt(LocalDateTime.now().plusSeconds(HOLD_SECONDS))
-                                .build();
+                ReservationSeat reservationSeat = ReservationSeat.createReservationSeat(seat, reservation);
 
                 reservationSeatRepository.save(reservationSeat);
 
