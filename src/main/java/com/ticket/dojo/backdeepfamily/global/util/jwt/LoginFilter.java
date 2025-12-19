@@ -136,39 +136,6 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
             Authentication authentication) throws IOException, ServletException {
 
-        // // 인증된 사용자 정보 추출
-        // // Principal은 인증의 주체(사용자)를 나타냄
-        // CustomUserDetails customUserDetails = (CustomUserDetails)
-        // authentication.getPrincipal();
-
-        // // 사용자 이름 추출 (실제로는 email)
-        // String username = customUserDetails.getUsername();
-        // System.out.println(username); // 로그인한 사용자 확인용 출력
-
-        // // 사용자의 권한(authorities) 목록 가져오기
-        // Collection<? extends GrantedAuthority> authorities =
-        // authentication.getAuthorities();
-
-        // // 권한 목록에서 첫 번째 권한 추출
-        // // 현재는 사용자당 하나의 권한만 가지므로 첫 번째 권한 사용
-        // Iterator<? extends GrantedAuthority> iterator = authorities.iterator();
-        // GrantedAuthority auth = iterator.next();
-
-        // // 권한 문자열 추출 (예: "ROLE_USER", "ROLE_ADMIN")
-        // String role = auth.getAuthority();
-
-        // // JWT 토큰 생성
-        // // 파라미터: username(email), role, 유효기간(1시간 = 60분 * 60초 * 1000밀리초)
-        // String token = jwtUtil.createJwt(username, role, 60*60*1000L);
-
-        // // 응답 헤더에 JWT 토큰 추가
-        // // "Authorization: Bearer {토큰}" 형식
-        // // Bearer는 토큰 기반 인증의 표준 접두사
-        // response.addHeader("Authorization", "Bearer " + token);
-
-        // // 클라이언트는 이 헤더에서 토큰을 추출하여 저장하고,
-        // // 이후 모든 API 요청에 이 토큰을 포함시켜야 함
-
         String username = authentication.getName();
 
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
