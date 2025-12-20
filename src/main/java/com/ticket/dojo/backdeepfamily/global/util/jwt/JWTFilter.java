@@ -194,4 +194,18 @@ public class JWTFilter extends OncePerRequestFilter{
         }
     }
 
+    // 아래 경로에서는 jwtFilter가 동작하지 않음
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+
+        if (path.startsWith("/actuator")) return true;
+
+        return path.equals("/login")
+                || path.equals("/users/join")
+                || path.equals("/auth/reissue")
+                || path.equals("/auth/logout");
+    }
+
+
 }
