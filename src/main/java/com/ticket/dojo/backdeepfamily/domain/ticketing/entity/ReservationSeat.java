@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReservationSeat {
+    private static final int HOLD_SECONDS = 20;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,5 +34,13 @@ public class ReservationSeat {
 
     public void refreshExpiredAt(LocalDateTime localDateTime) {
         expiredAt = localDateTime;
+    }
+
+    public static ReservationSeat createReservationSeat(Seat seat, Reservation reservation) {
+        return ReservationSeat.builder()
+                .seat(seat)
+                .reservation(reservation)
+                .expiredAt(LocalDateTime.now().plusSeconds(HOLD_SECONDS))
+                .build();
     }
 }
