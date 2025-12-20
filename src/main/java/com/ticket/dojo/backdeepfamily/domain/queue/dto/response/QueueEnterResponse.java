@@ -1,6 +1,7 @@
 package com.ticket.dojo.backdeepfamily.domain.queue.dto.response;
 
-import com.ticket.dojo.backdeepfamily.domain.queue.entity.Queue.QueueStatus;
+import com.ticket.dojo.backdeepfamily.domain.queue.entity.Queue;
+import com.ticket.dojo.backdeepfamily.domain.queue.entity.QueueStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,4 +23,13 @@ public class QueueEnterResponse {
     private int position; // 대기 순번
     private QueueStatus status; // 대기열 상태 (WAITING)
     private LocalDateTime enteredAt; // 진입 시간
+
+    public static QueueEnterResponse from(Queue savedQueue) {
+        return QueueEnterResponse.builder()
+                .token(savedQueue.getTokenValue())
+                .position(savedQueue.getPositionValue())
+                .status(savedQueue.getStatus())
+                .enteredAt(savedQueue.getEnteredAt())
+                .build();
+    }
 }
