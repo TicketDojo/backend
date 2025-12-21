@@ -1,5 +1,6 @@
 package com.ticket.dojo.backdeepfamily.domain.queue.concurrency;
 
+import com.ticket.dojo.backdeepfamily.domain.queue.dto.response.QueueEnterResponse;
 import com.ticket.dojo.backdeepfamily.domain.queue.entity.Queue;
 import com.ticket.dojo.backdeepfamily.domain.queue.repository.QueueRepository;
 import com.ticket.dojo.backdeepfamily.domain.queue.service.QueueService;
@@ -13,10 +14,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -93,6 +96,62 @@ public class raceConditionTest {
         // Race Condition이 발생하면 테스트 실패
         assertNotEquals(50, activeCount);
         assertNotEquals(50, waitingCount);
+    }
+
+    @Test
+    @DisplayName("Race Condition : 동시 재진입 시 중복 대기열 생성")
+    void 동시_재진입_시_중복_대기열() throws InterruptedException {
+        // given: 한 명의 사용자 생성
+        User targetUser = createAndSaveUser("target_user");
+
+        // when: 같은 사용자가 동시에 5번 입장 시도
+        int concurrentAttempts = 5;
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(concurrentAttempts);
+        ExecutorService executorService = Executors.newFixedThreadPool(concurrentAttempts);
+
+        List<QueueEnterResponse> responses = new ArrayList<>();
+
+        for (int i = 0; i < concurrentAttempts; i++) {
+            executorService.submit(() -> {
+                try {
+                    startLatch.await(); // 모든 스레드가 동시에 시작
+                    QueueEnterResponse response = queueService.enterQueue(targetUser.getUserId());
+                    synchronized (responses) {
+                        responses.add(response);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown(); // 모든 스레드 동시 시작
+        doneLatch.await(10, TimeUnit.SECONDS); // 완료 대기
+        executorService.shutdown();
+
+        // then: 해당 사용자의 대기열은 1개만 존재해야 함
+        List<Queue> userQueues = queueRepository.findAll().stream()
+                .filter(q -> q.getUser().getUserId().equals(targetUser.getUserId()))
+                .collect(Collectors.toList());
+
+        System.out.println("=== Race Condition Test Result ===");
+        System.out.println("동시 진입 시도 횟수: " + concurrentAttempts);
+        System.out.println("생성된 응답 수: " + responses.size());
+        System.out.println("저장된 대기열 수: " + userQueues.size() + "\t기대 대기열 수 : 1");
+        System.out.println("생성된 토큰들:");
+        responses.forEach(r -> System.out.println("  - " + r.getToken()));
+
+        assertNotEquals(1, userQueues.size());
+
+        // 모든 응답의 토큰이 동일해야 함 (마지막 진입한 것만 유효)
+        Set<String> uniqueTokens = responses.stream()
+                .map(QueueEnterResponse::getToken)
+                .collect(Collectors.toSet());
+
+        System.out.println("고유 토큰 수: " + uniqueTokens.size());
     }
 
     private User createAndSaveUser(String s) {
