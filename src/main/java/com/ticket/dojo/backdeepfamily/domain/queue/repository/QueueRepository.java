@@ -35,4 +35,6 @@ public interface QueueRepository extends JpaRepository<Queue, Long> {
 
     // 특정 사용자의 먼저 들어온 대기열 상태가 있는지 반환
     Optional<Queue> findByUserAndStatusIn(User user, List<QueueStatus> active);
+
+    List<Queue> user(User user);
 }
