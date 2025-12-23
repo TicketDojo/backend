@@ -3,6 +3,7 @@ package com.ticket.dojo.backdeepfamily.domain.queue.service;
 import com.ticket.dojo.backdeepfamily.domain.queue.dto.response.QueueEnterResponse;
 import com.ticket.dojo.backdeepfamily.domain.queue.dto.response.QueueStatusResponse;
 import com.ticket.dojo.backdeepfamily.domain.queue.entity.Queue;
+import com.ticket.dojo.backdeepfamily.domain.queue.entity.QueueStatus;
 import com.ticket.dojo.backdeepfamily.domain.queue.repository.QueueRepository;
 import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
 import com.ticket.dojo.backdeepfamily.domain.user.repository.UserRepository;
@@ -47,9 +48,9 @@ class QueueServiceImplTest {
         QueueEnterResponse response = queueService.enterQueue(user.getUserId());
 
         // then
-        assertEquals(Queue.QueueStatus.ACTIVE, response.getStatus()); // 50명 미만이므로 Active
+        assertEquals(QueueStatus.ACTIVE, response.getStatus()); // 50명 미만이므로 Active
         assertEquals(0, response.getPosition()); // Active는 순번 의미 없음 (0)
-        assertEquals(1, queueRepository.countByStatus(Queue.QueueStatus.ACTIVE));
+        assertEquals(1, queueRepository.countByStatus(QueueStatus.ACTIVE));
     }
 
     @Test
@@ -63,8 +64,8 @@ class QueueServiceImplTest {
         }
 
         // then
-        assertEquals(10, queueRepository.countByStatus(Queue.QueueStatus.ACTIVE));
-        assertEquals(0, queueRepository.countByStatus(Queue.QueueStatus.WAITING));
+        assertEquals(10, queueRepository.countByStatus(QueueStatus.ACTIVE));
+        assertEquals(0, queueRepository.countByStatus(QueueStatus.WAITING));
     }
 
     @Test
@@ -78,8 +79,8 @@ class QueueServiceImplTest {
         }
 
         // then
-        assertEquals(50, queueRepository.countByStatus(Queue.QueueStatus.ACTIVE));
-        assertEquals(50, queueRepository.countByStatus(Queue.QueueStatus.WAITING));
+        assertEquals(50, queueRepository.countByStatus(QueueStatus.ACTIVE));
+        assertEquals(50, queueRepository.countByStatus(QueueStatus.WAITING));
     }
 
     @Test
@@ -96,15 +97,15 @@ class QueueServiceImplTest {
         // 2. Target 유저 입장 -> Waiting 1번
         User targetUser = createAndSaveUser("target");
         QueueEnterResponse firstEntry = queueService.enterQueue(targetUser.getUserId());
-        assertEquals(Queue.QueueStatus.WAITING, firstEntry.getStatus());
+        assertEquals(QueueStatus.WAITING, firstEntry.getStatus());
 
         // 3. 몇 명 더 입장 -> Waiting 증가
-        createAndSaveUser("dummy_w1");
-        queueService.enterQueue(createAndSaveUser("dummy_w1").getUserId());
-        createAndSaveUser("dummy_w2");
-        queueService.enterQueue(createAndSaveUser("dummy_w2").getUserId());
+        User dummyW1 = createAndSaveUser("dummy_w1");
+        queueService.enterQueue(dummyW1.getUserId());
+        User dummyW2 = createAndSaveUser("dummy_w2");
+        queueService.enterQueue(dummyW2.getUserId());
 
-        assertEquals(3, queueRepository.countByStatus(Queue.QueueStatus.WAITING));
+        assertEquals(3, queueRepository.countByStatus(QueueStatus.WAITING));
 
         // when
         // 4. Target 유저 재진입
@@ -117,7 +118,7 @@ class QueueServiceImplTest {
         // 상태는 여전히 Waiting이지만, 맨 뒤로 갔으므로 순번이나 enteredAt이 바뀌었음
         // (Position은 동적 계산이므로 DB count로 확인)
         // 총 Waiting 수는 여전히 3명이어야 함 (기존 것 삭제 후 추가이므로)
-        assertEquals(3, queueRepository.countByStatus(Queue.QueueStatus.WAITING));
+        assertEquals(3, queueRepository.countByStatus(QueueStatus.WAITING));
 
         // 맨 뒤인지 확인 (Token으로 조회하여 상태 및 EnteredAt 비교 등)
         QueueStatusResponse status = queueService.getQueueStatus(secondEntry.getToken());
@@ -143,23 +144,24 @@ class QueueServiceImplTest {
         // 2. 1명 Waiting
         User waiter = createAndSaveUser("waiter");
         QueueEnterResponse waiterResponse = queueService.enterQueue(waiter.getUserId());
-        assertEquals(Queue.QueueStatus.WAITING, waiterResponse.getStatus());
+        assertEquals(QueueStatus.WAITING, waiterResponse.getStatus());
         assertEquals(1, queueService.getQueueStatus(waiterResponse.getToken()).getPosition());
 
         // when
         // 3. Active 유저 중 한 명이 결제 진입 (expireQueue)
         // Active 유저의 토큰을 알아야 함. Repository에서 조회
-        Queue activeQueue = queueRepository.findByUserAndStatusIn(activeUsers.get(0), List.of(Queue.QueueStatus.ACTIVE)).get();
-        queueService.expireQueue(activeQueue.getToken());
+        Queue activeQueue = queueRepository.findByUserAndStatusIn(activeUsers.get(0), List.of(QueueStatus.ACTIVE))
+                .get();
+        queueService.expireQueue(activeQueue.getTokenValue());
 
         // then
         // 4. 해당 Active 유저는 Expired
         Queue expiredQueue = queueRepository.findById(activeQueue.getId()).get();
-        assertEquals(Queue.QueueStatus.EXPIRED, expiredQueue.getStatus());
+        assertEquals(QueueStatus.EXPIRED, expiredQueue.getStatus());
 
         // 5. Waiting 유저는 Active로 변경되었어야 함
         QueueStatusResponse waiterStatus = queueService.getQueueStatus(waiterResponse.getToken());
-        assertEquals(Queue.QueueStatus.ACTIVE, waiterStatus.getStatus());
+        assertEquals(QueueStatus.ACTIVE, waiterStatus.getStatus());
         assertEquals(0, waiterStatus.getPosition());
     }
 
@@ -179,13 +181,13 @@ class QueueServiceImplTest {
         // 2. 1명 Waiting
         User waiter = createAndSaveUser("waiter_exit");
         QueueEnterResponse waiterResponse = queueService.enterQueue(waiter.getUserId());
-        assertEquals(Queue.QueueStatus.WAITING, waiterResponse.getStatus());
+        assertEquals(QueueStatus.WAITING, waiterResponse.getStatus());
 
         // when
         // 3. Active 유저 중 한 명이 퇴장 (exitQueue)
-        Queue activeQueue = queueRepository.findByUserAndStatusIn(activeUsers.get(0), List.of(Queue.QueueStatus.ACTIVE))
+        Queue activeQueue = queueRepository.findByUserAndStatusIn(activeUsers.get(0), List.of(QueueStatus.ACTIVE))
                 .get();
-        queueService.exitQueue(activeQueue.getToken());
+        queueService.exitQueue(activeQueue.getTokenValue());
 
         // then
         // 4. 해당 Active 유저는 삭제됨
@@ -193,7 +195,7 @@ class QueueServiceImplTest {
 
         // 5. Waiting 유저는 Active로 변경되었어야 함
         QueueStatusResponse waiterStatus = queueService.getQueueStatus(waiterResponse.getToken());
-        assertEquals(Queue.QueueStatus.ACTIVE, waiterStatus.getStatus());
+        assertEquals(QueueStatus.ACTIVE, waiterStatus.getStatus());
     }
 
     private User createAndSaveUser(String suffix) {

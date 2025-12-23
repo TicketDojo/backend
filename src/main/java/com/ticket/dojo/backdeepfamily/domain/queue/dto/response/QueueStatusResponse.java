@@ -1,12 +1,11 @@
 package com.ticket.dojo.backdeepfamily.domain.queue.dto.response;
 
 import com.ticket.dojo.backdeepfamily.domain.queue.entity.Queue;
+import com.ticket.dojo.backdeepfamily.domain.queue.entity.QueueStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Builder
@@ -20,5 +19,13 @@ public class QueueStatusResponse {
 
     private String token;               // 대기열 토큰
     private int position;               // 현재 대기 순번
-    private Queue.QueueStatus status;   // 대기열 상태 (WAITING, ACTIVE, EXPIRED)
+    private QueueStatus status;   // 대기열 상태 (WAITING, ACTIVE, EXPIRED)
+
+    public static QueueStatusResponse of(Queue queue, int currentPosition) {
+        return QueueStatusResponse.builder()
+                .token(queue.getTokenValue())
+                .position(currentPosition)
+                .status(queue.getStatus())
+                .build();
+    }
 }
