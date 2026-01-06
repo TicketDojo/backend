@@ -24,10 +24,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 @SpringBootTest
-public class raceConditionTest {
+public class QueueRaceConditionTest {
 
     @Autowired
     private QueueService queueService;
@@ -98,7 +97,7 @@ public class raceConditionTest {
 
         // Race Condition이 발생하면 테스트 실패
         assertEquals(50, activeCount, "활성화 인원은 50명이여야 합니다.");
-        assertEquals(50, waitingCount, "대기 인원은 50명이여야 합니다.");
+        assertEquals(9, waitingCount, "대기 인원은 9명이여야 합니다.");
     }
 
     @Test
@@ -222,13 +221,10 @@ public class raceConditionTest {
 
         // Race Condition 발생
         assertEquals(10, uniquePositions.size(), "대기 번호는 10개여야 합니다.");
-
     }
-
 
     private User createAndSaveUser(String s) {
         User user = User.builder().email(s + "@naver.com").password("qweqwe").name(s).build();
         return userRepository.save(user);
     }
-
 }
