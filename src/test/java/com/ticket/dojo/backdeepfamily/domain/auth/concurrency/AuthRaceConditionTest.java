@@ -160,7 +160,7 @@ public class AuthRaceConditionTest {
         System.out.println("고유한 새 Refresh Token 수: " + uniqueNewTokens.size());
 
         if (successCount.get() > 1) {
-            System.out.println("⚠️ 경고: 동시 재발급이 여러 번 성공했습니다. Token Replay 공격에 취약할 수 있습니다.");
+            System.out.println("동시 재발급이 여러 번 성공했습니다.");
         }
         
         assertEquals(1, successCount.get(), 
