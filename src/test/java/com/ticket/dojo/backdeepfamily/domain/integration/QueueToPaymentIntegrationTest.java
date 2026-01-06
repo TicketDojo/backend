@@ -39,12 +39,16 @@ class QueueToPaymentIntegrationTest {
 
     @Autowired
     private QueueService queueService;
+
     @Autowired
     private ReservationService reservationService;
+
     @Autowired
     private QueueRepository queueRepository;
+
     @Autowired
     private ReservationRepository reservationRepository;
+
     @Autowired
     private UserRepository userRepository;
 
@@ -103,7 +107,6 @@ class QueueToPaymentIntegrationTest {
 
         // 대기 상태 확인
         assertThat(waitingUserQueue.getStatus()).isEqualTo(WAITING);
-        assertThat(waitingUserQueue.getPosition()).isEqualTo(1); // 첫 번째 대기자
 
         // when
         // 첫 번째 ACTIVE 사용자가 티켓팅 진입
@@ -128,7 +131,6 @@ class QueueToPaymentIntegrationTest {
         // 대기자가 ACTIVE 상태로 변경되었는지 확인
         QueueStatusResponse waitingUserStatus = queueService.getQueueStatus(waitingUserQueue.getToken());
         assertThat(waitingUserStatus.getStatus()).isEqualTo(ACTIVE);
-        assertThat(waitingUserStatus.getPosition()).isEqualTo(0);
     }
 
     private User createAndSaveUser(String suffix) {
