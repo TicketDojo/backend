@@ -111,10 +111,11 @@ class LoginIntegrationTest {
     @DisplayName("정상 로그인 - JWT 토큰 발급 성공")
     void login_Success() throws Exception {
         // When & Then: /login 요청
+        String jsonBody = String.format("{\"email\":\"%s\",\"password\":\"%s\"}", testEmail, testPassword);
+
         MvcResult result = mockMvc.perform(post("/login")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .param("username", testEmail)  // Spring Security 관례상 username 파라미터 사용
-                .param("password", testPassword))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonBody))
                 .andDo(print())  // 요청/응답 내용 출력
                 .andExpect(status().isOk())  // 200 상태 코드
                 .andExpect(header().exists("access"))  // access 헤더 존재
@@ -148,10 +149,11 @@ class LoginIntegrationTest {
     @DisplayName("존재하지 않는 이메일로 로그인 시도 - 401 에러")
     void login_UserNotFound_Fail() throws Exception {
         // When & Then
+        String jsonBody = String.format("{\"email\":\"%s\",\"password\":\"%s\"}", "nonexistent@example.com", testPassword);
+
         mockMvc.perform(post("/login")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .param("username", "nonexistent@example.com")
-                .param("password", testPassword))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonBody))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())  // 401 상태 코드
                 .andExpect(header().doesNotExist("access"));  // 토큰 미발급
@@ -175,10 +177,11 @@ class LoginIntegrationTest {
     @DisplayName("잘못된 비밀번호로 로그인 시도 - 401 에러")
     void login_WrongPassword_Fail() throws Exception {
         // When & Then
+        String jsonBody = String.format("{\"email\":\"%s\",\"password\":\"%s\"}", testEmail, "wrongpassword");
+
         mockMvc.perform(post("/login")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .param("username", testEmail)
-                .param("password", "wrongpassword"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonBody))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())  // 401 상태 코드
                 .andExpect(header().doesNotExist("access"));  // 토큰 미발급
@@ -202,10 +205,11 @@ class LoginIntegrationTest {
     @DisplayName("발급된 JWT 토큰의 유효성 검증")
     void login_TokenValidation() throws Exception {
         // Given: 로그인하여 토큰 발급
+        String jsonBody = String.format("{\"email\":\"%s\",\"password\":\"%s\"}", testEmail, testPassword);
+
         MvcResult result = mockMvc.perform(post("/login")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .param("username", testEmail)
-                .param("password", testPassword))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonBody))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -246,10 +250,12 @@ class LoginIntegrationTest {
     @Test
     @DisplayName("필수 파라미터 누락 시 로그인 실패")
     void login_MissingParameters_Fail() throws Exception {
-        // When & Then: username만 전송 (password 누락)
+        // When & Then: email만 전송 (password 누락)
+        String jsonBody = String.format("{\"email\":\"%s\"}", testEmail);
+
         mockMvc.perform(post("/login")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .param("username", testEmail))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonBody))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().doesNotExist("access"));
@@ -269,17 +275,16 @@ class LoginIntegrationTest {
      * 참고: 현재 구현에서는 form-urlencoded만 지원
      */
     @Test
-    @DisplayName("JSON 형식으로 로그인 시도 - 실패 (form-urlencoded만 지원)")
-    void login_JsonContentType_Fail() throws Exception {
+    @DisplayName("JSON 형식으로 로그인 시도 - 성공 (JSON 지원)")
+    void login_JsonContentType_Success() throws Exception {
         // When & Then
-        String jsonBody = String.format("{\"username\":\"%s\",\"password\":\"%s\"}", testEmail, testPassword);
+        String jsonBody = String.format("{\"email\":\"%s\",\"password\":\"%s\"}", testEmail, testPassword);
 
         mockMvc.perform(post("/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonBody))
                 .andDo(print())
-                .andExpect(status().isUnauthorized());
-
-        // 참고: 향후 JSON 형식도 지원하려면 LoginFilter를 커스터마이징 필요
+                .andExpect(status().isOk())
+                .andExpect(header().exists("access"));
     }
 }
