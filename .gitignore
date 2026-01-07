@@ -37,3 +37,10 @@ out/
 
 ### VS Code ###
 .vscode/
+CLAUDE.md
+template.md
+test.md
+plan.md
+feedback.txt
+src/main/resources/application.properties
+.claude
