@@ -29,10 +29,6 @@ public class Queue {
     @Column(nullable = false)
     private QueueStatus status; // 큐 상태
 
-    @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "position"))
-    private Position position; // 대기 순번
-
     @Column(nullable = false)
     private LocalDateTime enteredAt; // 입장 시간
 
@@ -171,5 +167,31 @@ public class Queue {
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public enum QueueStatus {
+        WAITING, // 대기 중
+        ACTIVE, // 활성화 (입장 가능)
+        EXPIRED // 만료됨
+    }
+
+    public static Queue createWaitQueue(User user, String token, int position) {
+        return Queue.builder()
+                .user(user)
+                .token(token)
+                .status(QueueStatus.WAITING)
+                .enteredAt(LocalDateTime.now())
+                .build();
+    }
+
+    public void activate(LocalDateTime now) {
+        this.status = QueueStatus.ACTIVE;
+        this.activatedAt = now;
+        // this.expiresAt = now.plusMinutes(10); // 삭제됨
+        this.updatedAt = now;
+    }
+
+    public void expire() {
+        this.status = QueueStatus.EXPIRED;
     }
 }
