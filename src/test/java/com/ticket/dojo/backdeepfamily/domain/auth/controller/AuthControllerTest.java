@@ -105,10 +105,10 @@ class AuthControllerTest {
      * 로그인하여 access 토큰과 refresh 토큰을 발급받는 헬퍼 메서드
      */
     private MvcResult performLogin() throws Exception {
+        String jsonBody = String.format("{\"email\":\"%s\",\"password\":\"%s\"}", testEmail, testPassword);
         return mockMvc.perform(post("/login")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .param("username", testEmail)
-                .param("password", testPassword))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonBody))
                 .andExpect(status().isOk())
                 .andReturn();
     }
