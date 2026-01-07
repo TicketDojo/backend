@@ -32,8 +32,6 @@ public class Queue {
     @Column(nullable = false)
     private QueueStatus status; // 큐 상태
 
-    private int position; // 대기 순번
-
     @Column(nullable = false)
     private LocalDateTime enteredAt; // 입장 시간
 
@@ -74,7 +72,6 @@ public class Queue {
                 .user(user)
                 .token(token)
                 .status(QueueStatus.WAITING)
-                .position(position)
                 .enteredAt(LocalDateTime.now())
                 .build();
     }
