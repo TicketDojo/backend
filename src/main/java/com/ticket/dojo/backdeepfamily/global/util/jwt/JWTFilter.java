@@ -101,25 +101,30 @@ public class JWTFilter extends OncePerRequestFilter{
             return;
         }
 
-        // Authorization 헤더 추출
-        // 정상 형식: "Bearer eyJhbGciOiJIUzI1NiJ9..."
-        String authorization = request.getHeader("Authorization");
+        // access 헤더에서 JWT 토큰 추출 (우선순위 1)
+        // 정상 형식: "eyJhbGciOiJIUzI1NiJ9..." (Bearer 접두사 없음)
+        String token = request.getHeader("access");
 
-        // 토큰이 없거나 "Bearer "로 시작하지 않는 경우
-        if(authorization == null || !authorization.startsWith("Bearer ")) {
-            log.warn("No JWT token found in request to {}", path);
+        // access 헤더가 없으면 Authorization 헤더 확인 (우선순위 2)
+        if(token == null) {
+            String authorization = request.getHeader("Authorization");
 
-            // SecurityConfig에서 해당 경로가 인증 필요하면 403 에러 발생
-            // SecurityConfig에서 permitAll()이면 정상 진행
-            filterChain.doFilter(request, response);
-            return;
+            // Authorization 헤더도 없거나 "Bearer "로 시작하지 않는 경우
+            if(authorization == null || !authorization.startsWith("Bearer ")) {
+                log.warn("No JWT token found in request to {}", path);
+
+                // SecurityConfig에서 해당 경로가 인증 필요하면 403 에러 발생
+                // SecurityConfig에서 permitAll()이면 정상 진행
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // "Bearer " 접두사 제거하여 순수 토큰 문자열만 추출
+            // "Bearer eyJhbGci..." → "eyJhbGci..."
+            token = authorization.split(" ")[1];
         }
 
         log.info("Start Authorization");  // JWT 인증 시작 로그
-
-        // "Bearer " 접두사 제거하여 순수 토큰 문자열만 추출
-        // "Bearer eyJhbGci..." → "eyJhbGci..."
-        String token = authorization.split(" ")[1];
 
         try {
             // === 1단계: 토큰 카테고리 확인 (access 토큰만 허용) ===
