@@ -1,6 +1,5 @@
 package com.ticket.dojo.backdeepfamily.domain.ticketing.scheduler;
 
-import com.ticket.dojo.backdeepfamily.domain.queue.repository.QueueRepository;
 import com.ticket.dojo.backdeepfamily.domain.ticketing.repository.ReservationSeatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class RoundResetScheduler {
 
     private final ReservationSeatRepository reservationSeatRepository;
-    private final QueueRepository queueRepository;
 
     /**
      * 매분 0초에 실행 - 모든 좌석 점유 초기화
@@ -29,7 +27,6 @@ public class RoundResetScheduler {
 
         if (count > 0) {
             reservationSeatRepository.deleteAll();
-            queueRepository.deleteAll();
             log.info("새 회차 시작");
         }
     }

@@ -67,7 +67,7 @@ public class QueueServiceImpl implements QueueService {
         if (activeCount < MAX_ACTIVE_USERS) {
             status = Queue.QueueStatus.ACTIVE;
             // Active는 바로 입장하므로 순번은 의미 없지만 0으로 설정
-            queue = Queue.builder().user(user).token(token).status(status).enteredAt(now).build();
+            queue = Queue.builder().user(user).token(token).status(status).position(0).enteredAt(now).build();
             log.info("대기열 즉시 진입 (Active < 50) - Token : {}", token);
         }
         // 5. 50명 이상이면 Waiting
@@ -83,7 +83,7 @@ public class QueueServiceImpl implements QueueService {
         // 6. DB 저장
         Queue savedQueue = queueRepository.save(queue);
 
-        return new QueueEnterResponse(savedQueue.getToken(), savedQueue.getStatus(), savedQueue.getEnteredAt());
+        return new QueueEnterResponse(savedQueue.getToken(), savedQueue.getPosition(), savedQueue.getStatus(), savedQueue.getEnteredAt());
     }
 
     /***
