@@ -20,14 +20,12 @@ public class QueueEnterResponse {
      */
 
     private String token; // 대기열 고유 토큰
-    private int position; // 대기 순번
     private QueueStatus status; // 대기열 상태 (WAITING)
     private LocalDateTime enteredAt; // 진입 시간
 
     public static QueueEnterResponse from(Queue savedQueue) {
         return QueueEnterResponse.builder()
                 .token(savedQueue.getTokenValue())
-                .position(savedQueue.getPositionValue())
                 .status(savedQueue.getStatus())
                 .enteredAt(savedQueue.getEnteredAt())
                 .build();

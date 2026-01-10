@@ -49,7 +49,6 @@ class QueueServiceImplTest {
 
         // then
         assertEquals(QueueStatus.ACTIVE, response.getStatus()); // 50명 미만이므로 Active
-        assertEquals(0, response.getPosition()); // Active는 순번 의미 없음 (0)
         assertEquals(1, queueRepository.countByStatus(QueueStatus.ACTIVE));
     }
 

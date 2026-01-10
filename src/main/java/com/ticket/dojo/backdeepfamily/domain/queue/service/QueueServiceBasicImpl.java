@@ -2,7 +2,6 @@ package com.ticket.dojo.backdeepfamily.domain.queue.service;
 
 import com.ticket.dojo.backdeepfamily.domain.queue.dto.response.QueueEnterResponse;
 import com.ticket.dojo.backdeepfamily.domain.queue.dto.response.QueueStatusResponse;
-import com.ticket.dojo.backdeepfamily.domain.queue.entity.Position;
 import com.ticket.dojo.backdeepfamily.domain.queue.entity.Queue;
 import com.ticket.dojo.backdeepfamily.domain.queue.entity.QueueStatus;
 import com.ticket.dojo.backdeepfamily.domain.queue.repository.QueueRepository;
@@ -17,9 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Service("basic")
@@ -64,16 +61,13 @@ public class QueueServiceBasicImpl implements QueueService {
         }
         // 3.2 50명 이상이면 대기열 진입
         else{
-            int waitingCount = queueRepository.countByStatus(QueueStatus.WAITING);
-            Position position = queuePolicy.calculateWaitingPosition(waitingCount);
-            log.info("대기열 대기 진입 (Active >= {}) - 순번 {}", queuePolicy.getMaxActiveUsers(), position.getValue());
-            createQueue = Queue.createWaiting(user, position);
+            createQueue = Queue.createWaiting(user);
         }
 
         // 4. 저장
         Queue savedQueue = queueRepository.save(createQueue);
 
-        log.info("대기열 진입 완료 - Token: {}, Status: {}, Position: {}", savedQueue.getTokenValue(), savedQueue.getStatus(), savedQueue.getPositionValue());
+        log.info("대기열 진입 완료 - Token: {}, Status: {}", savedQueue.getTokenValue(), savedQueue.getStatus());
 
         return QueueEnterResponse.from(savedQueue);
     }
