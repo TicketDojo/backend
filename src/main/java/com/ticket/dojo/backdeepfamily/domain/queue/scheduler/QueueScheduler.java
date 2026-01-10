@@ -12,13 +12,13 @@ import org.springframework.stereotype.Component;
 public class QueueScheduler {
 
     private final QueueService queueService;
-
-    /***
-     * 5초마다 대기자들 Active로 전환
-     */
-    @Scheduled(fixedDelay = 5000)
-    public void activateNextInQueue() {
-        log.debug("스케줄러 실행 : 대기자 Active로 전환");
-        queueService.activateNextInQueue();
-    }
+//
+//    /***
+//     * 5초마다 대기자들 Active로 전환
+//     */
+//    @Scheduled(fixedDelay = 5000)
+//    public void activateNextInQueue() {
+//        log.debug("스케줄러 실행 : 대기자 Active로 전환");
+//        queueService.activateNextInQueue();
+//    }
 }
