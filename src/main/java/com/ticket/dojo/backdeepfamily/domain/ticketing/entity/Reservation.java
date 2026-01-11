@@ -23,6 +23,9 @@ public class Reservation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Long version;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "ENUM('PENDING', 'CONFIRMED', 'CANCELLED', 'TIMEOUT', 'PAYING') DEFAULT 'PENDING'")
     private ReservationState reservationState;
