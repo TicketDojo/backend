@@ -9,6 +9,7 @@ import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
 import com.ticket.dojo.backdeepfamily.domain.user.repository.UserRepository;
 import com.ticket.dojo.backdeepfamily.global.exception.QueueNotFoundException;
 import com.ticket.dojo.backdeepfamily.global.exception.UserNotFoundException;
+import com.ticket.dojo.backdeepfamily.global.lock.service.NamedLockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +27,7 @@ public class QueueServiceBasicImpl implements QueueService {
     private final QueueRepository queueRepository;
     private final UserRepository userRepository;
     private final QueuePolicy queuePolicy;
+    private final NamedLockService namedLockService;
 
     /**
      * 대기열 진입
@@ -50,19 +52,8 @@ public class QueueServiceBasicImpl implements QueueService {
                     queueRepository.delete(existingQueue);
                 });
 
-        // 3. 현재 활성 상태 확인 및 큐 생성
-        int activeCount = queueRepository.countByStatus(QueueStatus.ACTIVE);
-        Queue createQueue = null;
-
-        // 3.1 50명 미만이면 바로 입장
-        if(queuePolicy.canActivateImmediately(activeCount)){
-            log.info("대기열 즉시 진입 (Active < {})", queuePolicy.getMaxActiveUsers());
-            createQueue = Queue.createActive(user);
-        }
-        // 3.2 50명 이상이면 대기열 진입
-        else{
-            createQueue = Queue.createWaiting(user);
-        }
+        // 3. Named Lock으로 보호된 큐 생성
+        Queue createQueue = createQueueWithLock(user);
 
         // 4. 저장
         Queue savedQueue = queueRepository.save(createQueue);
@@ -70,6 +61,33 @@ public class QueueServiceBasicImpl implements QueueService {
         log.info("대기열 진입 완료 - Token: {}, Status: {}", savedQueue.getTokenValue(), savedQueue.getStatus());
 
         return QueueEnterResponse.from(savedQueue);
+    }
+
+    /**
+     * Named Lock으로 보호되는 Queue 생성 로직
+     *
+     * 대기열 순번 할당 시 발생할 수 있는 race condition을 방지하기 위해
+     * Named Lock을 사용하여 동시성을 제어합니다.
+     *
+     * @param user 대기열에 진입하는 사용자
+     * @return 생성된 Queue
+     */
+    private Queue createQueueWithLock(User user) {
+        return namedLockService.executeWithLock("queue:assign:position", () -> {
+            // 이 블록 전체가 Named Lock으로 보호됨
+            int activeCount = queueRepository.countByStatus(QueueStatus.ACTIVE);
+
+            // 50명 미만이면 바로 입장
+            if (queuePolicy.canActivateImmediately(activeCount)) {
+                log.info("대기열 즉시 진입 (Active < {})", queuePolicy.getMaxActiveUsers());
+                return Queue.createActive(user);
+            }
+            // 50명 이상이면 대기열 진입
+            else {
+                log.info("대기열 대기 진입 (Active >= {})", queuePolicy.getMaxActiveUsers());
+                return Queue.createWaiting(user);
+            }
+        });
     }
 
     /**
@@ -101,41 +119,46 @@ public class QueueServiceBasicImpl implements QueueService {
 
     /**
      * 다음 사용자 활성화
+     *
+     * Scheduler와 exitQueue()가 동시에 호출할 수 있으므로
+     * Named Lock으로 동시성을 제어합니다.
      */
     @Transactional
     @Override
     public void activateNextInQueue() {
+        namedLockService.executeWithLock("queue:activate:slots", () -> {
+            // 이 블록 전체가 Named Lock으로 보호됨
 
-        int activeCount = queueRepository.countByStatus(QueueStatus.ACTIVE); // 활성화 큐 개수
-        int availableSlots = queuePolicy.calculateAvailableSlots(activeCount); // 활성 가능한 개수
+            int activeCount = queueRepository.countByStatus(QueueStatus.ACTIVE); // 활성화 큐 개수
+            int availableSlots = queuePolicy.calculateAvailableSlots(activeCount); // 활성 가능한 개수
 
-        // 1. 활성 가능한 슬릇이 없으면
-        if (availableSlots <= 0) {
-            log.debug("활성화 가능한 슬롯이 없습니다 - Active: {}", activeCount);
-            return;
-        }
+            // 1. 활성 가능한 슬롯이 없으면
+            if (availableSlots <= 0) {
+                log.debug("활성화 가능한 슬롯이 없습니다 - Active: {}", activeCount);
+                return;
+            }
 
-        log.info("대기열 활성화 시작 - 빈자리: {}명", availableSlots);
-        Pageable pageable = PageRequest.of(0, availableSlots);
+            log.info("대기열 활성화 시작 - 빈자리: {}명", availableSlots);
+            Pageable pageable = PageRequest.of(0, availableSlots);
 
-        // 2. 대기중인 입장 순 대기열 조회
-        List<Queue> waitingQueues = queueRepository.findByStatusOrderByEnteredAtAsc(QueueStatus.WAITING, pageable);
+            // 2. 대기중인 입장 순 대기열 조회
+            List<Queue> waitingQueues = queueRepository.findByStatusOrderByEnteredAtAsc(QueueStatus.WAITING, pageable);
 
-        // 3. 대기중인 큐 활성 가능한 개수만큼 활성화
-        if(waitingQueues.isEmpty()){
-            log.info("활성화할 대기 중인 큐가 없습니다.");
-            return;
-        }
+            // 3. 대기중인 큐 활성 가능한 개수만큼 활성화
+            if (waitingQueues.isEmpty()) {
+                log.info("활성화할 대기 중인 큐가 없습니다.");
+                return;
+            }
 
-        for(int i=0; i<waitingQueues.size(); i++){
-            Queue queue = waitingQueues.get(i);
-            queue.activate();
-            log.debug("큐 활성화 - Token : {}", queue.getTokenValue());
-        }
+            for (Queue queue : waitingQueues) {
+                queue.activate();
+                log.debug("큐 활성화 - Token : {}", queue.getTokenValue());
+            }
 
-        queueRepository.saveAll(waitingQueues);
+            queueRepository.saveAll(waitingQueues);
 
-        log.info("대기열 활성화 완료 - 활성화된 인원: {}명", waitingQueues.size());
+            log.info("대기열 활성화 완료 - 활성화된 인원: {}명", waitingQueues.size());
+        });
     }
 
     /**
