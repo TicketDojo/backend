@@ -27,7 +27,7 @@ public class TicketingSocketServiceImpl implements TicketingSocketService {
                 Reservation reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
 
-                Seat seat = seatRepository.findById(seatId)
+                Seat seat = seatRepository.findByIdWithPessimisticLock(seatId)
                                 .orElseThrow(() -> new SeatNotFoundException(seatId));
 
                 if (reservationSeatRepository.existsBySeat(seat)) {

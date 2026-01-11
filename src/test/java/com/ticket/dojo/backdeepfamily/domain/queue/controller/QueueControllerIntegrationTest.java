@@ -172,7 +172,6 @@ class QueueControllerIntegrationTest extends BaseControllerIntegrationTest {
         QueueEnterResponse response = objectMapper.readValue(responseBody, QueueEnterResponse.class);
 
         assertThat(response.getStatus()).isEqualTo(QueueStatus.ACTIVE);
-        assertThat(response.getPosition()).isEqualTo(0);
 
         // DB 검증
         Queue savedQueue = queueRepository.findByTokenValue(response.getToken()).orElseThrow();
@@ -216,7 +215,6 @@ class QueueControllerIntegrationTest extends BaseControllerIntegrationTest {
         QueueEnterResponse response = objectMapper.readValue(responseBody, QueueEnterResponse.class);
 
         assertThat(response.getStatus()).isEqualTo(QueueStatus.WAITING);
-        assertThat(response.getPosition()).isGreaterThan(0);
 
         // DB 검증
         Queue savedQueue = queueRepository.findByTokenValue(response.getToken()).orElseThrow();
@@ -298,9 +296,7 @@ class QueueControllerIntegrationTest extends BaseControllerIntegrationTest {
 
         // WAITING 사용자 1명 추가
         User waitingUser = createAndSaveTestUser("waiting@example.com", "password");
-        Queue newWaitingQueue = Queue.createWaiting(waitingUser,
-            com.ticket.dojo.backdeepfamily.domain.queue.entity.Position.of(1));
-        Queue waitingQueue = queueRepository.save(newWaitingQueue);
+        Queue waitingQueue = queueRepository.save(Queue.createWaiting(waitingUser));
 
         // When: 첫 번째 ACTIVE 사용자 퇴장
         String exitToken = exitTargetQueue.getTokenValue();

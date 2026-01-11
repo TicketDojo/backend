@@ -85,7 +85,6 @@ class QueueServiceIntegrationTest extends BaseServiceIntegrationTest {
 
         // then
         assertThat(response.getStatus()).isEqualTo(QueueStatus.ACTIVE);
-        assertThat(response.getPosition()).isEqualTo(0);
         assertThat(response.getToken()).isNotNull();
         assertThat(queueRepository.countByStatus(QueueStatus.ACTIVE)).isEqualTo(1);
         assertThat(queueRepository.countByStatus(QueueStatus.WAITING)).isEqualTo(0);
