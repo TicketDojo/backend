@@ -85,7 +85,7 @@ public class QueueConcurrencyTest {
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
         CountDownLatch latch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(threadCount);
-        Set<Integer> positions = Collections.synchronizedSet(new HashSet<>());
+        Set<String> tokens = Collections.synchronizedSet(new HashSet<>());
 
         for (int i = 0; i < threadCount; i++) {
             final Long userId = testUserIds.get(i);  // 실제 저장된 User ID 사용
@@ -95,10 +95,10 @@ public class QueueConcurrencyTest {
                     log.info("[스레드 시작] User ID: {}", userId);
 
                     var queueInfo = queueService.enterQueue(userId);
-                    Integer position = queueInfo.getPosition();
+                    String token = queueInfo.getToken();
 
-                    log.info("[순번 할당 성공] User ID: {}, Position: {}", userId, position);
-                    positions.add(position);
+                    log.info("[토큰 할당 성공] User ID: {}, Token: {}", userId, token);
+                    tokens.add(token);
                 } catch (InterruptedException e) {
                     log.error("[인터럽트 발생] User ID: {}", userId, e);
                     Thread.currentThread().interrupt();
@@ -121,11 +121,11 @@ public class QueueConcurrencyTest {
             .as("모든 스레드가 30초 내에 완료되어야 합니다 (교착상태 없음)")
             .isTrue();
 
-        log.info("최종 수집된 순번들: {}", positions);
-        log.info("기대 결과 개수: {}, 실제 결과 개수: {}", threadCount, positions.size());
+        log.info("최종 수집된 토큰들: {}", tokens);
+        log.info("기대 결과 개수: {}, 실제 결과 개수: {}", threadCount, tokens.size());
 
-        assertThat(positions)
-            .as("발급된 순번들(%s)의 개수는 %d개여야 합니다.", positions, threadCount)
+        assertThat(tokens)
+            .as("발급된 토큰들(%s)의 개수는 %d개여야 합니다.", tokens, threadCount)
             .hasSize(threadCount);
     }
 
