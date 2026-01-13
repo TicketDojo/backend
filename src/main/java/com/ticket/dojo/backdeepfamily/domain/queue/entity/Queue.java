@@ -29,10 +29,6 @@ public class Queue {
     @Column(nullable = false)
     private QueueStatus status; // 큐 상태
 
-    @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "position"))
-    private Position position; // 대기 순번
-
     @Column(nullable = false)
     private LocalDateTime enteredAt; // 입장 시간
 
@@ -44,12 +40,10 @@ public class Queue {
     private LocalDateTime updatedAt; // 마지막 업데이트 시간
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Queue(User user, Token token, QueueStatus status, Position position,
-                  LocalDateTime enteredAt, LocalDateTime activatedAt, LocalDateTime updatedAt){
+    private Queue(User user, Token token, QueueStatus status, LocalDateTime enteredAt, LocalDateTime activatedAt, LocalDateTime updatedAt){
         this.user = user;
         this.token = token;
         this.status = status;
-        this.position = position;
         this.enteredAt = enteredAt;
         this.activatedAt = activatedAt;
         this.updatedAt = updatedAt;
@@ -64,7 +58,6 @@ public class Queue {
                 .user(user)
                 .token(Token.generate())
                 .status(QueueStatus.ACTIVE)
-                .position(Position.zero())
                 .enteredAt(now)
                 .activatedAt(now)
                 .updatedAt(now)
@@ -74,13 +67,12 @@ public class Queue {
     /**
      * 대기 상태의 대기열 생성
      */
-    public static Queue createWaiting(User user, Position position) {
+    public static Queue createWaiting(User user) {
         LocalDateTime now = LocalDateTime.now();
         return Queue.builder()
                 .user(user)
                 .token(Token.generate())
                 .status(QueueStatus.WAITING)
-                .position(position)
                 .enteredAt(now)
                 .updatedAt(now)
                 .build();
@@ -146,13 +138,6 @@ public class Queue {
      */
     public String getTokenValue() {
         return this.token.getValue();
-    }
-
-    /**
-     * 순번 값 반환 (편의 메서드)
-     */
-    public int getPositionValue() {
-        return this.position.getValue();
     }
 
     @PrePersist

@@ -1,6 +1,5 @@
 package com.ticket.dojo.backdeepfamily.domain.queue.service;
 
-import com.ticket.dojo.backdeepfamily.domain.queue.entity.Position;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 
@@ -24,13 +23,6 @@ public class QueuePolicy {
     public int calculateAvailableSlots(int currentActiveCount){
         int slots = MAX_ACTIVE_USERS - currentActiveCount;
         return Math.max(0, slots);
-    }
-
-    /**
-     * 대기 순번 계산
-     */
-    public Position calculateWaitingPosition(int currentWaitingCount){
-        return Position.of(currentWaitingCount + 1);
     }
 
     /**
