@@ -9,7 +9,11 @@ import com.ticket.dojo.backdeepfamily.domain.ticketing.repository.ReservationSea
 import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
 import com.ticket.dojo.backdeepfamily.domain.user.repository.UserRepository;
 import com.ticket.dojo.backdeepfamily.global.exception.ReservationException;
+import com.ticket.dojo.backdeepfamily.global.lock.config.LockStrategy;
+import com.ticket.dojo.backdeepfamily.global.lock.config.LockStrategyConfig;
+import com.ticket.dojo.backdeepfamily.global.lock.service.NamedLockService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +24,7 @@ import java.util.stream.Collectors;
 
 import static com.ticket.dojo.backdeepfamily.domain.ticketing.entity.Reservation.ReservationState.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReservationServiceImpl implements ReservationService {
@@ -27,6 +32,8 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationRepository reservationRepository;
     private final ReservationSeatRepository reservationSeatRepository;
     private final QueueService queueService;
+    private final NamedLockService namedLockService;
+    private final LockStrategyConfig lockStrategyConfig;
     private static final int HOLD_SECONDS = 20;
 
     // 회차구할때 기준점
@@ -43,14 +50,40 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional
     @Override
     public void enterPaying(Long reservationId) {
+        log.info("결제 진입 요청 - reservationId: {}, LockStrategy: {}",
+                reservationId, lockStrategyConfig.getReservationLockStrategy());
 
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new ReservationException("예약을 찾을 수 없습니다. 예약 ID : " + reservationId));
+        Reservation reservation = findReservationWithStrategy(reservationId);
 
         reservation.changeState(PAYING);
 
         reservationSeatRepository.findAllByReservation(reservation)
-                .forEach(seat -> seat.refreshExpiredAt(LocalDateTime.now().plusSeconds(HOLD_SECONDS))); // 현재시간 + 20초로 초기화
+                .forEach(seat -> seat.refreshExpiredAt(LocalDateTime.now().plusSeconds(HOLD_SECONDS)));
+    }
+
+    /**
+     * 락 전략에 따라 예약 조회
+     */
+    private Reservation findReservationWithStrategy(Long reservationId) {
+        LockStrategy strategy = lockStrategyConfig.getReservationLockStrategy();
+
+        return switch (strategy) {
+            case PESSIMISTIC -> reservationRepository.findByIdWithPessimisticLock(reservationId)
+                    .orElseThrow(() -> new ReservationException("예약을 찾을 수 없습니다. 예약 ID : " + reservationId));
+            case NAMED -> findReservationWithNamedLock(reservationId);
+            case OPTIMISTIC, NONE -> reservationRepository.findById(reservationId)
+                    .orElseThrow(() -> new ReservationException("예약을 찾을 수 없습니다. 예약 ID : " + reservationId));
+        };
+    }
+
+    /**
+     * Named Lock으로 예약 조회
+     */
+    private Reservation findReservationWithNamedLock(Long reservationId) {
+        return namedLockService.executeWithLock("reservation:state:" + reservationId, () ->
+                reservationRepository.findById(reservationId)
+                        .orElseThrow(() -> new ReservationException("예약을 찾을 수 없습니다. 예약 ID : " + reservationId))
+        );
     }
 
     /**
@@ -83,6 +116,9 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional
     @Override
     public void completePaying(Long userId, Long reservationId, String queueToken) {
+        log.info("결제 완료 요청 - userId: {}, reservationId: {}, LockStrategy: {}",
+                userId, reservationId, lockStrategyConfig.getReservationLockStrategy());
+
         // 결제 처리 시뮬레이션 - 3초 딜레이
         try {
             Thread.sleep(3000);
@@ -90,8 +126,7 @@ public class ReservationServiceImpl implements ReservationService {
             throw new ReservationException("결제 처리 중 오류가 발생했습니다.");
         }
 
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new ReservationException("예약을 찾을 수 없습니다. 예약 ID : " + reservationId));
+        Reservation reservation = findReservationWithStrategy(reservationId);
 
         if (!reservation.getUser().getUserId().equals(userId)) {
             throw new ReservationException("비정상적인 접근입니다.");
@@ -126,8 +161,9 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional
     @Override
     public void cancelReservation(Long reservationId, Long userId) {
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new ReservationException("예약을 찾을 수 없습니다."));
+        log.info("예약 취소 요청 - reservationId: {}, userId: {}", reservationId, userId);
+
+        Reservation reservation = findReservationWithStrategy(reservationId);
 
         if (!reservation.getUser().getUserId().equals(userId)) {
             throw new ReservationException("예약 취소 권한이 없습니다.");

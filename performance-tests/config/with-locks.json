@@ -1,0 +1,48 @@
+{
+  "description": "With-locks configuration - All locks enabled",
+  "application.properties": {
+    "named.lock.enabled": true
+  },
+  "test_parameters": {
+    "vus": 100,
+    "duration": "1m",
+    "rampUp": "10s",
+    "rampDown": "10s"
+  },
+  "expected_behavior": {
+    "queue_entry": {
+      "position_duplicates": "None - race condition prevented by Named Lock",
+      "avg_response_time_ms": 70,
+      "p95_response_time_ms": 150,
+      "performance_degradation": "+10-30ms per request"
+    },
+    "seat_hold": {
+      "note": "Pessimistic lock ensures no duplicate holds",
+      "avg_response_time_ms": 40,
+      "p95_response_time_ms": 60
+    },
+    "reservation": {
+      "note": "Optimistic lock detects concurrent updates",
+      "conflict_rate": "~5% in high contention scenarios"
+    }
+  },
+  "locks_applied": {
+    "pessimistic_lock": {
+      "entity": "Seat",
+      "method": "SeatRepository.findByIdWithPessimisticLock()",
+      "impact": "+5-10ms per seat hold"
+    },
+    "named_lock": {
+      "operations": [
+        "QueueServiceBasicImpl.enterQueue() - queue:assign:position",
+        "QueueServiceBasicImpl.activateNextInQueue() - queue:activate:slots"
+      ],
+      "impact": "+10-30ms per queue operation"
+    },
+    "optimistic_lock": {
+      "entity": "Reservation",
+      "field": "@Version private Long version",
+      "impact": "Minimal - ~1ms overhead"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "description": "Baseline configuration - Named Lock disabled",
+  "application.properties": {
+    "named.lock.enabled": false
+  },
+  "test_parameters": {
+    "vus": 100,
+    "duration": "1m",
+    "rampUp": "10s",
+    "rampDown": "10s"
+  },
+  "expected_behavior": {
+    "queue_entry": {
+      "position_duplicates": "Expected - race condition not prevented",
+      "avg_response_time_ms": 50,
+      "p95_response_time_ms": 100
+    },
+    "seat_hold": {
+      "note": "Pessimistic lock already applied - same behavior as with-locks"
+    }
+  }
+}

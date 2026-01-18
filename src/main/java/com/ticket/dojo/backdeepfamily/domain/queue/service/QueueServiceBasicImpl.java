@@ -9,6 +9,8 @@ import com.ticket.dojo.backdeepfamily.domain.user.entity.User;
 import com.ticket.dojo.backdeepfamily.domain.user.repository.UserRepository;
 import com.ticket.dojo.backdeepfamily.global.exception.QueueNotFoundException;
 import com.ticket.dojo.backdeepfamily.global.exception.UserNotFoundException;
+import com.ticket.dojo.backdeepfamily.global.lock.config.LockStrategy;
+import com.ticket.dojo.backdeepfamily.global.lock.config.LockStrategyConfig;
 import com.ticket.dojo.backdeepfamily.global.lock.service.NamedLockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ public class QueueServiceBasicImpl implements QueueService {
     private final UserRepository userRepository;
     private final QueuePolicy queuePolicy;
     private final NamedLockService namedLockService;
+    private final LockStrategyConfig lockStrategyConfig;
 
     /**
      * 대기열 진입
@@ -38,7 +41,7 @@ public class QueueServiceBasicImpl implements QueueService {
     @Override
     public QueueEnterResponse enterQueue(Long userId) {
 
-        log.info("대기열 진입 요청 - userId: {}", userId);
+        log.info("대기열 진입 요청 - userId: {}, LockStrategy: {}", userId, lockStrategyConfig.getQueueLockStrategy());
 
         // 1. 사용자 조회
         User user = userRepository.findById(userId)
@@ -52,8 +55,8 @@ public class QueueServiceBasicImpl implements QueueService {
                     queueRepository.delete(existingQueue);
                 });
 
-        // 3. Named Lock으로 보호된 큐 생성
-        Queue createQueue = createQueueWithLock(user);
+        // 3. 락 전략에 따른 큐 생성
+        Queue createQueue = createQueueWithStrategy(user);
 
         // 4. 저장
         Queue savedQueue = queueRepository.save(createQueue);
@@ -64,30 +67,70 @@ public class QueueServiceBasicImpl implements QueueService {
     }
 
     /**
-     * Named Lock으로 보호되는 Queue 생성 로직
-     *
-     * 대기열 순번 할당 시 발생할 수 있는 race condition을 방지하기 위해
-     * Named Lock을 사용하여 동시성을 제어합니다.
+     * 락 전략에 따른 Queue 생성
      *
      * @param user 대기열에 진입하는 사용자
      * @return 생성된 Queue
      */
-    private Queue createQueueWithLock(User user) {
-        return namedLockService.executeWithLock("queue:assign:position", () -> {
-            // 이 블록 전체가 Named Lock으로 보호됨
-            int activeCount = queueRepository.countByStatus(QueueStatus.ACTIVE);
+    private Queue createQueueWithStrategy(User user) {
+        LockStrategy strategy = lockStrategyConfig.getQueueLockStrategy();
 
-            // 50명 미만이면 바로 입장
-            if (queuePolicy.canActivateImmediately(activeCount)) {
-                log.info("대기열 즉시 진입 (Active < {})", queuePolicy.getMaxActiveUsers());
-                return Queue.createActive(user);
+        return switch (strategy) {
+            case NAMED -> createQueueWithNamedLock(user);
+            case PESSIMISTIC -> createQueueWithPessimisticLock(user);
+            case NONE -> createQueueWithoutLock(user);
+            default -> {
+                log.warn("지원하지 않는 락 전략입니다: {}. NONE으로 대체합니다.", strategy);
+                yield createQueueWithoutLock(user);
             }
-            // 50명 이상이면 대기열 진입
-            else {
-                log.info("대기열 대기 진입 (Active >= {})", queuePolicy.getMaxActiveUsers());
-                return Queue.createWaiting(user);
-            }
+        };
+    }
+
+    /**
+     * Named Lock으로 보호되는 Queue 생성
+     */
+    private Queue createQueueWithNamedLock(User user) {
+        return namedLockService.executeWithLock("queue:assign:position", () -> {
+            return determineQueueStatus(user);
         });
+    }
+
+    /**
+     * Pessimistic Lock으로 보호되는 Queue 생성
+     * countByStatus에 FOR UPDATE 락을 적용
+     */
+    private Queue createQueueWithPessimisticLock(User user) {
+        // countByStatusWithLock은 FOR UPDATE가 적용된 쿼리
+        int activeCount = queueRepository.countByStatusWithLock(QueueStatus.ACTIVE);
+        return determineQueueStatusByCount(user, activeCount);
+    }
+
+    /**
+     * 락 없이 Queue 생성 (베이스라인)
+     */
+    private Queue createQueueWithoutLock(User user) {
+        return determineQueueStatus(user);
+    }
+
+    /**
+     * 활성 사용자 수에 따라 Queue 상태 결정
+     */
+    private Queue determineQueueStatus(User user) {
+        int activeCount = queueRepository.countByStatus(QueueStatus.ACTIVE);
+        return determineQueueStatusByCount(user, activeCount);
+    }
+
+    /**
+     * 주어진 활성 사용자 수로 Queue 상태 결정
+     */
+    private Queue determineQueueStatusByCount(User user, int activeCount) {
+        if (queuePolicy.canActivateImmediately(activeCount)) {
+            log.info("대기열 즉시 진입 (Active < {})", queuePolicy.getMaxActiveUsers());
+            return Queue.createActive(user);
+        } else {
+            log.info("대기열 대기 진입 (Active >= {})", queuePolicy.getMaxActiveUsers());
+            return Queue.createWaiting(user);
+        }
     }
 
     /**
@@ -126,39 +169,54 @@ public class QueueServiceBasicImpl implements QueueService {
     @Transactional
     @Override
     public void activateNextInQueue() {
-        namedLockService.executeWithLock("queue:activate:slots", () -> {
-            // 이 블록 전체가 Named Lock으로 보호됨
+        LockStrategy strategy = lockStrategyConfig.getQueueLockStrategy();
 
-            int activeCount = queueRepository.countByStatus(QueueStatus.ACTIVE); // 활성화 큐 개수
-            int availableSlots = queuePolicy.calculateAvailableSlots(activeCount); // 활성 가능한 개수
+        switch (strategy) {
+            case NAMED -> activateNextWithNamedLock();
+            case PESSIMISTIC -> activateNextWithPessimisticLock();
+            default -> activateNextWithoutLock();
+        }
+    }
 
-            // 1. 활성 가능한 슬롯이 없으면
-            if (availableSlots <= 0) {
-                log.debug("활성화 가능한 슬롯이 없습니다 - Active: {}", activeCount);
-                return;
-            }
+    private void activateNextWithNamedLock() {
+        namedLockService.executeWithLock("queue:activate:slots", this::doActivateNext);
+    }
 
-            log.info("대기열 활성화 시작 - 빈자리: {}명", availableSlots);
-            Pageable pageable = PageRequest.of(0, availableSlots);
+    private void activateNextWithPessimisticLock() {
+        // 비관적 락은 countByStatusWithLock에서 처리
+        doActivateNext();
+    }
 
-            // 2. 대기중인 입장 순 대기열 조회
-            List<Queue> waitingQueues = queueRepository.findByStatusOrderByEnteredAtAsc(QueueStatus.WAITING, pageable);
+    private void activateNextWithoutLock() {
+        doActivateNext();
+    }
 
-            // 3. 대기중인 큐 활성 가능한 개수만큼 활성화
-            if (waitingQueues.isEmpty()) {
-                log.info("활성화할 대기 중인 큐가 없습니다.");
-                return;
-            }
+    private void doActivateNext() {
+        int activeCount = queueRepository.countByStatus(QueueStatus.ACTIVE);
+        int availableSlots = queuePolicy.calculateAvailableSlots(activeCount);
 
-            for (Queue queue : waitingQueues) {
-                queue.activate();
-                log.debug("큐 활성화 - Token : {}", queue.getTokenValue());
-            }
+        if (availableSlots <= 0) {
+            log.debug("활성화 가능한 슬롯이 없습니다 - Active: {}", activeCount);
+            return;
+        }
 
-            queueRepository.saveAll(waitingQueues);
+        log.info("대기열 활성화 시작 - 빈자리: {}명", availableSlots);
+        Pageable pageable = PageRequest.of(0, availableSlots);
 
-            log.info("대기열 활성화 완료 - 활성화된 인원: {}명", waitingQueues.size());
-        });
+        List<Queue> waitingQueues = queueRepository.findByStatusOrderByEnteredAtAsc(QueueStatus.WAITING, pageable);
+
+        if (waitingQueues.isEmpty()) {
+            log.info("활성화할 대기 중인 큐가 없습니다.");
+            return;
+        }
+
+        for (Queue queue : waitingQueues) {
+            queue.activate();
+            log.debug("큐 활성화 - Token : {}", queue.getTokenValue());
+        }
+
+        queueRepository.saveAll(waitingQueues);
+        log.info("대기열 활성화 완료 - 활성화된 인원: {}명", waitingQueues.size());
     }
 
     /**

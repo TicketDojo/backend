@@ -3,6 +3,7 @@ package com.ticket.dojo.backdeepfamily.global.lock.service;
 import com.ticket.dojo.backdeepfamily.global.lock.repository.NamedLockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,13 @@ public class NamedLockService {
 
     private final NamedLockRepository namedLockRepository;
     private static final int DEFAULT_TIMEOUT_SECONDS = 3;
+
+    /**
+     * Named Lock 활성화 여부 (성능 테스트용 feature flag)
+     * false로 설정 시 락 획득을 건너뛰고 바로 비즈니스 로직 실행
+     */
+    @Value("${named.lock.enabled:true}")
+    private boolean namedLockEnabled;
 
     /**
      * Named Lock을 획득하고 작업을 실행한 후 락을 해제합니다.
@@ -53,6 +61,12 @@ public class NamedLockService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public <T> T executeWithLock(String lockKey, int timeoutSeconds, Supplier<T> supplier) {
+        // Feature flag: Named Lock 비활성화 시 락 없이 실행
+        if (!namedLockEnabled) {
+            log.debug("Named Lock 비활성화 상태 - 락 없이 실행: lockKey={}", lockKey);
+            return supplier.get();
+        }
+
         try {
             log.debug("Named Lock 획득 시도: lockKey={}, timeout={}s", lockKey, timeoutSeconds);
 
