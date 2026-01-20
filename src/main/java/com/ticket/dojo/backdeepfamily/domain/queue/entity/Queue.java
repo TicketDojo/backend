@@ -39,6 +39,10 @@ public class Queue {
     @Column(nullable = false)
     private LocalDateTime updatedAt; // 마지막 업데이트 시간
 
+    // 낙관적 락을 위한 버전 필드
+//    @Version
+//    private Long version;
+
     @Builder(access = AccessLevel.PRIVATE)
     private Queue(User user, Token token, QueueStatus status, LocalDateTime enteredAt, LocalDateTime activatedAt, LocalDateTime updatedAt){
         this.user = user;
